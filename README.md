@@ -88,3 +88,107 @@ Generate a single HTML file that implements a browser-based AI assistant for man
   - Quick actions appear as buttons in Chat.
 
 #### Structured Prompt Template
+```
+You will be acting as a domain expert to provide specialized advice and guidance. Your role and expertise area are defined below.
+
+
+{{ROLE}}
+
+
+
+{{DOMAIN_DESCRIPTION}}
+
+
+
+{{KEY_OBJECTIVES}}
+
+
+You are {{ROLE}}, an expert in {{DOMAIN_DESCRIPTION}}. Your goal is to provide {{KEY_OBJECTIVES}}.
+
+[... full behavioral guidelines ...]
+
+
+{{CONTEXT}}
+
+
+
+{{USER_QUERY}}
+
+
+Provide your expert response here:
+```
+
+---
+
+### 3. **Projects Tab**
+- Input fields:
+  - **URLs**: Textarea (one per line).
+  - **File Upload**: Accept multiple files or ZIPs (extract contents).
+  - **Manual Code**: Textarea.
+- On “Add Project”:
+  - Store: `id`, `urls[]`, `files[{name, content}]`, `code`, `createdAt`, `enriched: null`.
+- Display list of projects as cards.
+- Click a project → open **Project Detail Modal**.
+
+#### Project Detail Modal
+- Shows raw inputs (URLs, file names, code snippet).
+- Checkboxes for AI tasks:
+  - [ ] Summarize app
+  - [ ] Technical description
+  - [ ] Categorize
+  - [ ] Generate app.json
+- “Submit” → calls Groq to **generate real content** for each task.
+- After generation, shows **editable artifact list** (`summary.md`, `app.json`, etc.) with **Edit/Save**.
+- All edits are saved to `project.enriched`.
+
+---
+
+### 4. **Chat Tab**
+- **Chat History Sidebar**:
+  - List of chats with title, message count, duration, preview.
+  - “+” for new chat, “📤” to export.
+- **Main Chat Area**:
+  - **Expert Selector**: Populated from AI Experts.
+  - **Project Selector**: Lists all projects.
+  - **Quick Actions**: Dynamically loaded from selected expert.
+  - **Chat Box**: User/AI messages styled differently.
+  - **Stats Panel**: Messages, tokens used, duration.
+- On send:
+  - Construct prompt using structured template.
+  - Inject full project context: URLs, files (truncated), code, **and enriched artifacts**.
+  - Call Groq API with expert-specific `temperature` and `maxTokens`.
+- **Export Modal**: Choose format (txt/json/html), filename, download.
+
+---
+
+### 5. **Persistence**
+- All data stored in `localStorage`:
+  - `groqApiKey`, `groqModel`, `groqTemp`, `groqMaxTokens`, `groqPrompt`
+  - `aiExperts` (array)
+  - `aiProjects` (array)
+  - `aiChatHistory` (array)
+
+---
+
+### 6. **UI/UX**
+- Clean, responsive layout using Tailwind CSS (via CDN).
+- Animations: fade-in messages, pulse AI avatar, modal slide-in.
+- SVG assets: app icon, AI face, logo (inline).
+- No external build tools—single HTML file.
+
+---
+
+### 7. **Libraries (CDN)**
+- Tailwind CSS
+- Axios
+- JSZip
+
+---
+
+### 8. **Future-Proofing Notes**
+- The structured prompt template ensures experts stay on-brand.
+- Artifact editing enables human-in-the-loop refinement.
+- Project context is **comprehensive** (raw + AI-enriched).
+```
+
+---
