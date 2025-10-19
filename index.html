@@ -85,6 +85,26 @@
    .stat-item { text-align: center; }
    .stat-value { font-size: 1.1rem; font-weight: bold; }
    .stat-label { font-size: 0.75rem; color: #6b7280; }
+   .artifact-item {
+     margin-top: 12px;
+     padding: 10px;
+     border: 1px solid #e5e7eb;
+     border-radius: 6px;
+     background: #f9fafb;
+   }
+   .artifact-actions {
+     margin-top: 6px;
+   }
+   .artifact-content {
+     margin-top: 8px;
+     padding: 8px;
+     background: white;
+     border: 1px solid #e5e7eb;
+     border-radius: 4px;
+     white-space: pre-wrap;
+     font-family: monospace;
+     font-size: 0.85rem;
+   }
  </style>
 </head>
 <body class="flex flex-col h-screen">
@@ -263,17 +283,21 @@
      <pre id="inspectCode" class="text-xs bg-gray-50 p-2 rounded overflow-x-auto"></pre>
    </div>
 
-   <h4 class="font-bold mt-4 mb-2">AI Analysis Tasks</h4>
-   <div class="space-y-2">
-     <label><input type="checkbox" id="taskSummarize" /> Summarize app</label>
-     <label><input type="checkbox" id="taskTechnical" /> Technical description</label>
-     <label><input type="checkbox" id="taskCategorize" /> Categorize</label>
-     <label><input type="checkbox" id="taskAppJson" /> Generate app.json</label>
+   <div id="inspectionForm">
+     <h4 class="font-bold mt-4 mb-2">AI Analysis Tasks</h4>
+     <div class="space-y-2">
+       <label><input type="checkbox" id="taskSummarize" /> Summarize app</label>
+       <label><input type="checkbox" id="taskTechnical" /> Technical description</label>
+       <label><input type="checkbox" id="taskCategorize" /> Categorize</label>
+       <label><input type="checkbox" id="taskAppJson" /> Generate app.json</label>
+     </div>
+
+     <div class="mt-4 flex justify-end">
+       <button id="submitProjectAnalysis" class="bg-blue-500 text-white px-3 py-1">Submit</button>
+     </div>
    </div>
 
-   <div class="mt-4 flex justify-end">
-     <button id="submitProjectAnalysis" class="bg-blue-500 text-white px-3 py-1">Submit</button>
-   </div>
+   <div id="artifactsList" class="mt-6 hidden"></div>
  </div>
 </div>
 
@@ -519,6 +543,230 @@ function loadProjects() {
  populateProjectSelect();
 }
 
+function inspectProject(id) {
+ const p = projects.find(proj => proj.id === id);
+ if (!p) return;
+
+ document.getElementById('inspectProjectId').value = p.id;
+ document.getElementById('inspectUrls').textContent = p.urls.join(', ') || '—';
+ document.getElementById('inspectFiles').textContent = p.files.map(f => f.name).join(', ') || '—';
+ document.getElementById('inspectCode').textContent = p.code || '—';
+
+ // Show form, hide artifacts initially
+ document.getElementById('inspectionForm').classList.remove('hidden');
+ document.getElementById('artifactsList').classList.add('hidden');
+ document.getElementById('artifactsList').innerHTML = '';
+
+ // Reset checkboxes
+ ['taskSummarize', 'taskTechnical', 'taskCategorize', 'taskAppJson'].forEach(id => {
+   document.getElementById(id).checked = false;
+ });
+
+ document.getElementById('projectDetailModal').style.display = 'flex';
+}
+
+// NEW: Generate AI content for selected tasks
+async function generateArtifactContent(project, tasks) {
+ const apiKey = localStorage.getItem('groqApiKey');
+ if (!apiKey) {
+   alert('Please set your Groq API key in Settings to generate AI insights.');
+   return {};
+ }
+
+ // Build context
+ let context = '';
+ if (project.urls.length) context += `URLs: ${project.urls.join(', ')}\n`;
+ if (project.code) context += `Code:\n${project.code}\n`;
+ project.files.forEach(f => {
+   context += `File: ${f.name}\n${f.content.substring(0, 1000)}...\n`;
+ });
+
+ const model = localStorage.getItem('groqModel') || 'llama-3.3-70b-versatile';
+ const results = {};
+
+ const promises = [];
+
+ if (tasks.summarize) {
+   promises.push(
+     axios.post('https://api.groq.com/openai/v1/chat/completions', {
+       model,
+       messages: [{ role: 'user', content: `Summarize this project in 2-3 sentences:\n\n${context}` }],
+       temperature: 0.7,
+       max_tokens: 300
+     }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
+     .then(res => {
+       results.summary = res.data.choices?.[0]?.message?.content || 'Summary not available.';
+     })
+   );
+ }
+
+ if (tasks.technical) {
+   promises.push(
+     axios.post('https://api.groq.com/openai/v1/chat/completions', {
+       model,
+       messages: [{ role: 'user', content: `Provide a technical description of this project (stack, architecture, key features):\n\n${context}` }],
+       temperature: 0.5,
+       max_tokens: 500
+     }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
+     .then(res => {
+       results.technical = res.data.choices?.[0]?.message?.content || 'Technical description not available.';
+     })
+   );
+ }
+
+ if (tasks.categorize) {
+   promises.push(
+     axios.post('https://api.groq.com/openai/v1/chat/completions', {
+       model,
+       messages: [{ role: 'user', content: `Categorize this project. Return only a single category name (e.g., "E-commerce", "Productivity", "Social Media"):\n\n${context}` }],
+       temperature: 0.3,
+       max_tokens: 50
+     }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
+     .then(res => {
+       results.category = res.data.choices?.[0]?.message?.content?.trim() || 'Uncategorized';
+     })
+   );
+ }
+
+ if (tasks.appJson) {
+   promises.push(
+     axios.post('https://api.groq.com/openai/v1/chat/completions', {
+       model,
+       messages: [{ role: 'user', content: `Generate a valid JSON object with these fields: title (string), description (string), url (string, use first URL or empty), category (string), tags (array of 3-5 strings), technologies (array of strings). Use this context:\n\n${context}` }],
+       temperature: 0.6,
+       max_tokens: 500
+     }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
+     .then(res => {
+       let jsonStr = res.data.choices?.[0]?.message?.content || '{}';
+       // Extract JSON if wrapped in ```json...```
+       const match = jsonStr.match(/```(?:json)?\s*({[\s\S]*?})\s*```/);
+       if (match) jsonStr = match[1];
+       try {
+         results.appJson = JSON.parse(jsonStr);
+       } catch (e) {
+         results.appJson = { error: 'Failed to parse JSON', raw: jsonStr };
+       }
+     })
+   );
+ }
+
+ await Promise.all(promises);
+ return results;
+}
+
+document.getElementById('submitProjectAnalysis').addEventListener('click', async () => {
+ const id = document.getElementById('inspectProjectId').value;
+ const project = projects.find(p => p.id === id);
+ if (!project) return;
+
+ const tasks = {
+   summarize: document.getElementById('taskSummarize').checked,
+   technical: document.getElementById('taskTechnical').checked,
+   categorize: document.getElementById('taskCategorize').checked,
+   appJson: document.getElementById('taskAppJson').checked
+ };
+
+ if (!tasks.summarize && !tasks.technical && !tasks.categorize && !tasks.appJson) {
+   alert('Please select at least one task.');
+   return;
+ }
+
+ // Show loading
+ document.getElementById('submitProjectAnalysis').textContent = 'Generating...';
+ document.getElementById('submitProjectAnalysis').disabled = true;
+
+ const results = await generateArtifactContent(project, tasks);
+
+ // Save enriched data
+ project.enriched = {
+   tasks,
+   ...results,
+   analyzedAt: new Date().toISOString()
+ };
+ localStorage.setItem('aiProjects', JSON.stringify(projects));
+
+ // Render artifacts
+ renderArtifacts(project.enriched);
+
+ document.getElementById('submitProjectAnalysis').textContent = 'Submit';
+ document.getElementById('submitProjectAnalysis').disabled = false;
+});
+
+function renderArtifacts(enriched) {
+ const list = document.getElementById('artifactsList');
+ const form = document.getElementById('inspectionForm');
+ form.classList.add('hidden');
+ list.classList.remove('hidden');
+ list.innerHTML = '<h4 class="font-bold">Generated Artifacts</h4>';
+
+ if (enriched.summary) {
+   addArtifactItem('Summary', 'summary.md', enriched.summary, (val) => {
+     enriched.summary = val;
+     saveEnriched();
+   });
+ }
+
+ if (enriched.technical) {
+   addArtifactItem('Technical Description', 'technical.md', enriched.technical, (val) => {
+     enriched.technical = val;
+     saveEnriched();
+   });
+ }
+
+ if (enriched.category) {
+   addArtifactItem('Category', 'category.txt', enriched.category, (val) => {
+     enriched.category = val;
+     saveEnriched();
+   });
+ }
+
+ if (enriched.appJson) {
+   const jsonStr = typeof enriched.appJson === 'string' ? enriched.appJson : JSON.stringify(enriched.appJson, null, 2);
+   addArtifactItem('App Metadata', 'app.json', jsonStr, (val) => {
+     try {
+       enriched.appJson = JSON.parse(val);
+     } catch (e) {
+       alert('Invalid JSON. Please fix syntax.');
+       return;
+     }
+     saveEnriched();
+   });
+ }
+}
+
+function addArtifactItem(title, filename, content, onSave) {
+ const list = document.getElementById('artifactsList');
+ const item = document.createElement('div');
+ item.className = 'artifact-item';
+ item.innerHTML = `
+   <div><strong>${title}</strong> <code>${filename}</code></div>
+   <div class="artifact-actions">
+     <button class="edit-btn bg-gray-200 px-2 py-1 text-xs rounded">Edit</button>
+   </div>
+   <pre class="artifact-content hidden" contenteditable="true">${content}</pre>
+ `;
+ list.appendChild(item);
+
+ const editBtn = item.querySelector('.edit-btn');
+ const contentEl = item.querySelector('.artifact-content');
+
+ editBtn.addEventListener('click', () => {
+   if (contentEl.classList.contains('hidden')) {
+     contentEl.classList.remove('hidden');
+     editBtn.textContent = 'Save';
+   } else {
+     const newValue = contentEl.textContent;
+     onSave(newValue);
+     contentEl.classList.add('hidden');
+     editBtn.textContent = 'Edit';
+   }
+ });
+}
+
+function saveEnriched() {
+ localStorage.setItem('aiProjects', JSON.stringify(projects));
+} 
+ 
 function updateProjectsUI() {
  projectsList.innerHTML = '';
  if (projects.length === 0) {
