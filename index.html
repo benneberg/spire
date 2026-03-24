@@ -2,1240 +2,802 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Project Assistant</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%233b82f6%22/></svg>">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Spire AI Dev Assistant - Local First PWA IDE">
+  <title>Spire AI IDE</title>
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlNwaXJlIEFJIERldiBBc3Npc3RhbnQiLAogICJzaG9ydF9uYW1lIjogIlNwaXJlIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwZjE3MmEiLAogICJ0aGVtZV9jb2xvciI6ICIjM2I4MmY2IiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sLCUzQ3N2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJyUzRSUzQ2NpcmNsZSBjeD0nNTAnIGN5PSc1MCcgcj0nNDAnIGZpbGw9JyUyMzNiODJmNicvJTNFJTNDL3N2ZyUzRSIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICAgIH0KICBdCn0=">
+  
+  <!-- Libraries -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Monaco Editor Loader -->
+  <script>
+    var require = { paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+  <script>
+    window.monacoReady = new Promise(resolve => {
+      require(['vs/editor/editor.main'], function() { resolve(window.monaco); });
+    });
+  </script>
+
   <style>
-    body { font-family: 'Inter', sans-serif; background: #f8fafc; }
-    .hidden { display: none; }
-    .tab-active { border-b-2 border-blue-500 font-semibold; }
-    .scrollable { overflow-y: auto; max-height: 300px; }
-    .chat-message {
-      padding: 12px;
-      margin-bottom: 10px;
-      border-radius: 8px;
-      max-width: 80%;
-      word-wrap: break-word;
-    }
-    .user-message { background-color: #e0f2fe; align-self: flex-end; margin-left: auto; }
-    .ai-message { background-color: #f3f4f6; align-self: flex-start; }
-    .chat-container {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding: 15px;
-      height: 300px;
-      overflow-y: auto;
-    }
-    .project-card, .expert-card {
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 12px;
-      background: white;
-    }
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background-color: rgba(0,0,0,0.5);
-      z-index: 1000;
-      justify-content: center;
-      align-items: center;
-    }
-    .modal-content {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      max-width: 600px;
-      width: 90%;
-      max-height: 80vh;
-      overflow-y: auto;
-    }
-    .close-modal { cursor: pointer; font-size: 1.5rem; }
-    .chat-history-item {
-      padding: 10px;
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      margin-bottom: 6px;
-      cursor: pointer;
-      background: #f9fafb;
-    }
-    .chat-history-item.active { background: #dbeafe; border-color: #3b82f6; }
-    .action-button {
-      padding: 4px 8px;
-      font-size: 0.8rem;
-      border-radius: 4px;
-      background: #e5e7eb;
-      cursor: pointer;
-      margin-right: 4px;
-      transition: all 0.2s;
-    }
-    .action-button:hover { background: #d1d5db; transform: scale(1.05); }
-    .chat-stats {
-      display: flex;
-      justify-content: space-around;
-      margin-top: 10px;
-      padding: 10px;
-      background-color: #f9fafb;
-      border-radius: 8px;
-    }
-    .stat-item { text-align: center; }
-    .stat-value { font-size: 1.1rem; font-weight: bold; }
-    .stat-label { font-size: 0.75rem; color: #6b7280; }
-    .artifact-item {
-      margin-top: 12px;
-      padding: 10px;
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      background: #f9fafb;
-    }
-    .artifact-content {
-      margin-top: 8px;
-      padding: 8px;
-      background: white;
-      border: 1px solid #e5e7eb;
-      border-radius: 4px;
-      white-space: pre-wrap;
-      font-family: monospace;
-      font-size: 0.85rem;
-    }
-    @keyframes pulse-slow {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.85; }
-    }
-    .animate-pulse-slow {
-      animation: pulse-slow 4s infinite ease-in-out;
-    }
-    @keyframes fade-in-up {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-fade-in-up {
-      animation: fade-in-up 0.3s ease-out forwards;
-    }
-    @keyframes modal-in {
-      from { opacity: 0; transform: translateY(-10px) scale(0.98); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-    .animate-modal-in {
-      animation: modal-in 0.25s ease-out forwards;
-    }
+    :root { --safe-bottom: env(safe-area-inset-bottom, 0px); --safe-top: env(safe-area-inset-top, 0px); }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; height: 100vh; overflow: hidden; display: flex; flex-direction: column; padding-top: var(--safe-top); }
+    .hidden { display: none !important; }
+    .tab-active { background: #1e293b; color: #60a5fa; border-bottom: 2px solid #3b82f6; }
+    
+    /* IDE Layout Layout */
+    .ide-container { display: flex; flex: 1; overflow: hidden; padding-bottom: var(--safe-bottom); }
+    .sidebar { width: 250px; background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; }
+    .editor-area { flex: 1; position: relative; background: #1e1e1e; }
+    .ai-panel { width: 350px; background: #1e293b; border-left: 1px solid #334155; display: flex; flex-direction: column; }
+    
+    /* File Tree & Buttons */
+    .file-item { padding: 4px 8px; font-size: 13px; cursor: pointer; display: flex; align-items: center; color: #cbd5e1; }
+    .file-item:hover, .file-active { background: #334155; color: #fff; }
+    .action-btn { background: #1e293b; border: 1px solid #334155; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; color: #94a3b8; transition: all 0.2s; }
+    .action-btn:hover { background: #334155; color: #f8fafc; }
+    
+    /* Monaco Overrides */
+    .monaco-editor { padding-top: 8px; }
+    
+    /* Chat & Action UI */
+    .chat-msg { padding: 10px; margin: 8px; border-radius: 6px; font-size: 13px; line-height: 1.5; }
+    .msg-user { background: #3b82f6; color: white; align-self: flex-end; }
+    .msg-ai { background: #334155; color: #f8fafc; align-self: flex-start; border: 1px solid #475569; }
+    .msg-ai pre { background: #0f172a; padding: 8px; border-radius: 4px; overflow-x: auto; margin-top: 4px; }
+    
+    /* Input - iPhone Optimized */
+    #aiInput { min-height: 60px; max-height: 200px; overflow-y: auto; scroll-behavior: smooth; }
+    
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    
+    /* Mermaid & Modals */
+    .mermaid { background: #f8fafc; padding: 20px; border-radius: 8px; color: #0f172a; }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 50; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+    .modal-content { background: #1e293b; border: 1px solid #334155; padding: 20px; border-radius: 8px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
   </style>
 </head>
-<body class="flex flex-col h-screen">
+<body>
 
-<header class="bg-blue-600 text-white p-4 flex justify-between items-center">
+<!-- HEADER -->
+<header class="bg-slate-900 border-b border-slate-700 h-[50px] flex justify-between items-center px-4 flex-shrink-0">
   <div class="flex items-center space-x-2">
-    <!-- AI Face Icon -->
-    <svg width="32" height="32" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="animate-pulse-slow">
-      <circle cx="100" cy="100" r="90" fill="#bfdbfe"/>
-      <circle cx="70" cy="80" r="12" fill="#1e40af"/>
-      <circle cx="130" cy="80" r="12" fill="#1e40af"/>
-      <circle cx="70" cy="80" r="5" fill="#ffffff"/>
-      <circle cx="130" cy="80" r="5" fill="#ffffff"/>
-      <path d="M70 130 Q100 160, 130 130" stroke="#1e40af" stroke-width="6" fill="none" stroke-linecap="round"/>
-      <line x1="100" y1="10" x2="100" y2="40" stroke="#3b82f6" stroke-width="4"/>
-      <circle cx="100" cy="10" r="6" fill="#3b82f6"/>
-    </svg>
-    <h1 class="text-lg font-bold">AI Project Assistant</h1>
+    <div class="w-6 h-6 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow">S</div>
+    <h1 class="font-bold text-slate-100 tracking-wide text-sm hidden sm:block">Spire IDE</h1>
+    <span id="activeProjectBadge" class="ml-2 px-2 py-0.5 bg-slate-800 text-blue-400 text-xs rounded hidden">Project</span>
   </div>
-  <nav>
-    <button class="px-2 py-1 tab-btn tab-active" data-tab="settings">Settings</button>
-    <button class="px-2 py-1 tab-btn" data-tab="projects">Projects</button>
-    <button class="px-2 py-1 tab-btn" data-tab="chat">Chat</button>
+  <nav class="flex space-x-1 text-xs font-medium">
+    <button class="px-3 py-1.5 rounded-t tab-btn text-slate-400 hover:text-slate-200" data-tab="settings">Settings</button>
+    <button class="px-3 py-1.5 rounded-t tab-btn text-slate-400 hover:text-slate-200" data-tab="projects">Projects</button>
+    <button class="px-3 py-1.5 rounded-t tab-btn tab-active" data-tab="workspace">Workspace</button>
   </nav>
 </header>
 
-<main class="flex-1 p-4 overflow-auto">
-  <!-- Settings -->
-  <section id="settings" class="tab-content">
-    <h2 class="text-xl font-bold mb-2">Settings</h2>
-    <div class="space-y-2 mb-4">
-      <label>Groq API Key: <input type="text" id="apiKey" class="border p-1 w-full" placeholder="Enter your Groq API key"></label>
-      <label>Model:
-        <select id="modelSelect" class="border p-1 w-full">
-          <option value="">Loading models...</option>
-        </select>
-      </label>
-      <label>Temperature: 
-        <input type="range" id="temperature" min="0" max="2" step="0.1" value="1" class="w-full">
-        <span id="tempValue">1.0</span>
-      </label>
-      <label>Max Tokens: <input type="number" id="maxTokens" min="1" max="5000" value="1024" class="border p-1 w-full"></label>
-      <label>Machine Prompt: <textarea id="machinePrompt" class="border p-1 w-full" rows="3" placeholder="System prompt for AI"></textarea></label>
-      <button id="saveSettings" class="bg-blue-500 text-white px-3 py-1 mt-2">Save Settings</button>
-    </div>
-
-    <h2 class="text-xl font-bold mb-2">AI Experts (Roles)</h2>
-    <div class="mb-4">
-      <button id="addExpertBtn" class="bg-green-500 text-white px-3 py-1">+ Add New Expert</button>
-    </div>
-    <div id="expertsList" class="space-y-3"></div>
-  </section>
-
-  <!-- Projects -->
-  <section id="projects" class="tab-content hidden">
-    <h2 class="text-xl font-bold mb-2">Projects</h2>
-    <div class="space-y-2">
-      <label>Project URLs (one per line): <textarea id="projectUrls" class="border p-1 w-full" rows="2" placeholder="https://example.com"></textarea></label>
-      <label>Upload ZIP / Files: <input type="file" id="projectFile" multiple></label>
-      <label>Manual Code Input: <textarea id="manualCode" class="border p-1 w-full" rows="5" placeholder="Paste your code here..."></textarea></label>
-      <button id="addProject" class="bg-green-500 text-white px-3 py-1 mt-2">Add Project</button>
-    </div>
-    <div class="mt-4">
-      <h3 class="font-bold">Projects List</h3>
-      <div id="projectsList" class="space-y-2 scrollable border p-2 bg-white"></div>
-    </div>
-  </section>
-
-  <!-- Chat -->
-  <section id="chat" class="tab-content hidden">
-    <h2 class="text-xl font-bold mb-2">AI Chat</h2>
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-      <div class="bg-white border rounded-lg p-3">
-        <div class="flex justify-between items-center mb-3">
-          <h3 class="font-bold">Chat History</h3>
-          <div class="flex space-x-1">
-            <button id="newChatBtn" class="p-1 text-sm bg-blue-100 hover:bg-blue-200 rounded transition-transform hover:scale-105 active:scale-95">+</button>
-            <button id="exportChatBtn" class="p-1 text-sm bg-green-100 hover:bg-green-200 rounded transition-transform hover:scale-105 active:scale-95">📤</button>
-          </div>
+<!-- SETTINGS TAB -->
+<section id="settings" class="tab-content hidden p-6 overflow-auto h-full text-slate-800 bg-slate-100">
+  <div class="max-w-3xl mx-auto space-y-4">
+    <div class="bg-white p-4 rounded-lg shadow border border-slate-200">
+      <h2 class="font-bold mb-3 flex items-center text-sm">🤖 LLM Engine Routing</h2>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600">Groq API Key (Cloud Fast)</label>
+          <input type="password" id="apiKey" class="border p-2 w-full rounded text-sm bg-slate-50" placeholder="gsk_...">
         </div>
-        <div id="chatHistoryList" class="space-y-2 max-h-80 overflow-y-auto"></div>
-      </div>
-
-      <div class="col-span-1 lg:col-span-3 flex flex-col">
-        <div class="bg-white border rounded-lg p-3 mb-3">
-          <div class="flex flex-wrap gap-2 mb-3">
-            <label class="text-sm">Expert:</label>
-            <select id="roleSelect" class="border p-1 text-sm"></select>
-            <label class="text-sm">Project:</label>
-            <select id="projectSelect" class="border p-1 text-sm">
-              <option value="">None</option>
-            </select>
-          </div>
-
-          <div id="quickActions" class="flex flex-wrap gap-1 mb-2"></div>
-
-          <div id="chatBox" class="chat-container"></div>
-
-          <div class="mt-3">
-            <textarea id="chatInput" class="border p-2 w-full" rows="2" placeholder="Type your message..."></textarea>
-            <div class="flex space-x-2 mt-2">
-              <button id="sendChat" class="bg-blue-500 text-white px-3 py-1 transition-transform hover:scale-105 active:scale-95">Send</button>
-              <button id="clearChat" class="bg-gray-500 text-white px-3 py-1">Clear</button>
-            </div>
-          </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600">Local AI Engine (WebGPU Web Worker)</label>
+          <select id="localModelSelect" class="border p-2 w-full rounded text-sm bg-slate-50">
+            <option value="none">Disabled (API Only)</option>
+            <option value="Xenova/TinyLlama-1.1B-Chat-v1.0">TinyLlama 1.1B (Fastest)</option>
+            <option value="Xenova/phi-2">Phi-2 (High Memory, Powerful)</option>
+          </select>
+          <p class="text-[10px] text-slate-500 mt-1">If enabled, small prompts run locally via Web Workers (doesn't freeze UI).</p>
         </div>
+        <button id="saveSettings" class="w-full bg-blue-600 text-white py-2 rounded text-sm hover:bg-blue-700">Save AI Config</button>
+      </div>
+    </div>
+  </div>
+</section>
 
-        <div id="chatStats" class="bg-white border rounded-lg p-3 hidden">
-          <h4 class="font-medium mb-2">Chat Summary</h4>
-          <div class="chat-stats">
-            <div class="stat-item">
-              <div class="stat-value" id="messageCount">0</div>
-              <div class="stat-label">Messages</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-value" id="tokenCount">0</div>
-              <div class="stat-label">Tokens</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-value" id="duration">0s</div>
-              <div class="stat-label">Duration</div>
-            </div>
-          </div>
-        </div>
+<!-- PROJECTS TAB -->
+<section id="projects" class="tab-content hidden p-6 overflow-auto h-full text-slate-800 bg-slate-100">
+  <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-white p-4 rounded-lg shadow border border-slate-200">
+      <h2 class="font-bold text-slate-700 mb-3 text-sm">Create / Import Project</h2>
+      <div class="space-y-3">
+        <input type="text" id="newProjName" class="border p-2 w-full rounded text-sm bg-slate-50" placeholder="Project Name">
+        <label class="block text-xs font-medium text-slate-500">Upload Files</label>
+        <input type="file" id="projectFile" multiple class="border p-1 w-full rounded text-xs">
+        <button id="addProject" class="w-full bg-slate-800 text-white px-4 py-2 rounded hover:bg-slate-900 text-sm font-medium">Create & Index Project</button>
       </div>
     </div>
-  </section>
-</main>
+    <div>
+      <h3 class="text-sm font-bold text-slate-400 uppercase mb-2">My Workspaces</h3>
+      <div id="projectsList" class="space-y-2"></div>
+    </div>
+  </div>
+</section>
 
-<!-- Expert Modal -->
-<div id="expertModal" class="modal">
-  <div class="modal-content animate-modal-in">
-    <div class="modal-header flex justify-between items-center mb-3">
-      <h3 id="expertModalTitle">Add Expert</h3>
-      <span class="close-modal" id="closeExpertModal">&times;</span>
-    </div>
-    <input type="hidden" id="expertId" />
-    <div class="mb-3">
-      <label class="block mb-1">Expert Name</label>
-      <input type="text" id="expertName" class="border p-2 w-full" />
-    </div>
-    <div class="mb-3">
-      <label class="block mb-1">Domain Description</label>
-      <input type="text" id="expertDomain" class="border p-2 w-full" placeholder="e.g., Frontend React development" />
-    </div>
-    <div class="mb-3">
-      <label class="block mb-1">Key Objectives</label>
-      <textarea id="expertObjectives" class="border p-2 w-full" rows="2" placeholder="e.g., Write clean, performant React code"></textarea>
-    </div>
-    <div class="grid grid-cols-2 gap-3 mb-3">
-      <div>
-        <label class="block mb-1">Temperature</label>
-        <input type="range" id="expertTemp" min="0" max="2" step="0.1" value="1" class="w-full" />
-        <span id="expertTempVal">1.0</span>
-      </div>
-      <div>
-        <label class="block mb-1">Max Tokens</label>
-        <input type="number" id="expertMaxTokens" min="1" max="5000" value="1024" class="border p-2 w-full" />
+<!-- WORKSPACE TAB (THE IDE) -->
+<section id="workspace" class="tab-content ide-container w-full">
+  
+  <!-- Left: File Tree -->
+  <div class="sidebar flex flex-col hidden sm:flex">
+    <div class="p-2 border-b border-slate-700 flex justify-between items-center bg-slate-800">
+      <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Explorer</span>
+      <div class="flex gap-1">
+        <button id="btnShowGraph" class="action-btn" title="Architecture Graph">🕸️</button>
+        <button id="btnHistory" class="action-btn" title="Git History">🕒</button>
       </div>
     </div>
-    <div class="mb-3">
-      <label class="block mb-1">Quick Actions (comma-separated)</label>
-      <input type="text" id="expertQuickActions" class="border p-2 w-full" placeholder="Summarize, Debug, Refactor" />
+    <div id="fileTree" class="flex-1 overflow-y-auto py-2"></div>
+  </div>
+
+  <!-- Center: Editors & Views -->
+  <div class="editor-area">
+    <!-- View Toggles -->
+    <div class="absolute top-0 left-0 right-0 h-8 bg-slate-800 border-b border-slate-700 flex items-center px-2 z-10 space-x-1">
+      <button id="tabCode" class="text-xs px-3 py-1 rounded bg-slate-700 text-white">Code</button>
+      <button id="tabDiff" class="text-xs px-3 py-1 rounded text-slate-400 hover:text-white hidden">Review Diff</button>
+      <button id="tabGraph" class="text-xs px-3 py-1 rounded text-slate-400 hover:text-white hidden">Architecture</button>
     </div>
-    <div class="flex justify-end space-x-2">
-      <button id="deleteExpertBtn" class="bg-red-500 text-white px-3 py-1 hidden">Delete</button>
-      <button id="cancelExpert" class="bg-gray-300 px-3 py-1">Cancel</button>
-      <button id="saveExpert" class="bg-blue-500 text-white px-3 py-1">Save</button>
+    
+    <!-- Containers -->
+    <div id="editor" class="absolute top-8 bottom-0 left-0 right-0"></div>
+    <div id="diffEditor" class="absolute top-8 bottom-0 left-0 right-0 hidden"></div>
+    <div id="graphView" class="absolute top-8 bottom-0 left-0 right-0 hidden bg-white overflow-auto p-4 flex justify-center items-start">
+      <div id="mermaidGraph" class="mermaid"></div>
     </div>
+    
+    <!-- Diff Action Bar -->
+    <div id="diffActionBar" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-800 border border-slate-600 rounded-lg p-2 shadow-xl hidden z-20 flex gap-2">
+      <button id="btnAcceptDiff" class="bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700">Accept Changes</button>
+      <button id="btnRejectDiff" class="bg-red-600 text-white px-4 py-1.5 rounded text-sm hover:bg-red-700">Reject</button>
+    </div>
+  </div>
+
+  <!-- Right: AI Copilot -->
+  <div class="ai-panel">
+    <div class="p-2 text-xs font-bold text-slate-400 border-b border-slate-700 uppercase tracking-wider bg-slate-800 flex justify-between items-center">
+      <span>AI Copilot</span>
+      <button class="sm:hidden action-btn" onclick="document.querySelector('.sidebar').classList.toggle('hidden')">📁 Files</button>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="p-2 border-b border-slate-700 grid grid-cols-2 gap-1 bg-slate-800/50">
+      <button id="btnRefactor" class="action-btn">🔧 Refactor Sel.</button>
+      <button id="btnGenTests" class="action-btn text-green-400">🧪 Gen Tests</button>
+      <button id="btnGenCI" class="action-btn text-blue-400">⚙️ Gen CI/CD</button>
+      <button id="btnAnalyzeAST" class="action-btn text-purple-400">🔍 AST Analysis</button>
+    </div>
+
+    <!-- Chat History -->
+    <div id="chatHistory" class="flex-1 overflow-y-auto flex flex-col p-2 space-y-2">
+      <div class="text-center text-slate-500 text-xs mt-4">Initialize a project to wake up the agent.</div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="p-2 border-t border-slate-700 bg-slate-800">
+      <div id="agentStatus" class="text-[10px] text-blue-400 mb-1 h-3 truncate"></div>
+      <textarea id="aiInput" class="w-full bg-slate-900 text-sm text-slate-100 p-2 rounded border border-slate-600 resize-none focus:border-blue-500 outline-none" placeholder="Feature request... (e.g. 'Add a caching layer')"></textarea>
+      <button id="btnSendAgent" class="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white py-1.5 rounded text-sm font-medium transition shadow">Run Autonomous Agent</button>
+    </div>
+  </div>
+</section>
+
+<!-- History Modal -->
+<div id="historyModal" class="modal hidden">
+  <div class="modal-content text-slate-100 flex flex-col">
+    <div class="flex justify-between items-center border-b border-slate-600 pb-2 mb-2">
+      <h3 class="font-bold">Project Snapshots (Mini-Git)</h3>
+      <button onclick="document.getElementById('historyModal').classList.add('hidden')" class="text-slate-400 hover:text-white">&times;</button>
+    </div>
+    <div id="historyList" class="space-y-2 flex-1 overflow-y-auto max-h-64"></div>
   </div>
 </div>
 
-<!-- Project Detail Modal -->
-<div id="projectDetailModal" class="modal">
-  <div class="modal-content animate-modal-in">
-    <div class="modal-header flex justify-between items-center mb-3">
-      <h3>Inspect Project</h3>
-      <span class="close-modal" id="closeProjectModal">&times;</span>
-    </div>
-    <input type="hidden" id="inspectProjectId" />
-    <div class="mb-3">
-      <strong>URLs:</strong>
-      <div id="inspectUrls" class="text-sm bg-gray-50 p-2 rounded"></div>
-    </div>
-    <div class="mb-3">
-      <strong>Files:</strong>
-      <div id="inspectFiles" class="text-sm bg-gray-50 p-2 rounded"></div>
-    </div>
-    <div class="mb-3">
-      <strong>Code:</strong>
-      <pre id="inspectCode" class="text-xs bg-gray-50 p-2 rounded overflow-x-auto"></pre>
-    </div>
-
-    <div id="inspectionForm">
-      <h4 class="font-bold mt-4 mb-2">AI Analysis Tasks</h4>
-      <div class="space-y-2">
-        <label><input type="checkbox" id="taskSummarize" /> Summarize app</label>
-        <label><input type="checkbox" id="taskTechnical" /> Technical description</label>
-        <label><input type="checkbox" id="taskCategorize" /> Categorize</label>
-        <label><input type="checkbox" id="taskAppJson" /> Generate app.json</label>
-      </div>
-      <div class="mt-4 flex justify-end">
-        <button id="submitProjectAnalysis" class="bg-blue-500 text-white px-3 py-1">Submit</button>
-      </div>
-    </div>
-
-    <div id="artifactsList" class="mt-6 hidden"></div>
-  </div>
-</div>
-
-<!-- Export Modal -->
-<div id="exportModal" class="modal">
-  <div class="modal-content animate-modal-in">
-    <div class="modal-header flex justify-between items-center mb-3">
-      <h3>Export Chat</h3>
-      <span class="close-modal" id="closeExportModal">&times;</span>
-    </div>
-    <div class="mb-3">
-      <label class="block mb-1">Format</label>
-      <select id="exportFormat" class="border p-2 w-full">
-        <option value="txt">Text (.txt)</option>
-        <option value="json">JSON (.json)</option>
-        <option value="html">HTML/PDF (.html)</option>
-      </select>
-    </div>
-    <div class="mb-3">
-      <label class="block mb-1">Filename</label>
-      <input type="text" id="exportFilename" class="border p-2 w-full" placeholder="chat_export" />
-    </div>
-    <div class="flex justify-end space-x-2">
-      <button id="cancelExport" class="bg-gray-300 px-3 py-1">Cancel</button>
-      <button id="confirmExport" class="bg-blue-500 text-white px-3 py-1">Export</button>
-    </div>
-  </div>
-</div>
-
-<script>
-/* ---------- Tabs ---------- */
-const tabs = document.querySelectorAll('.tab-btn');
-const contents = document.querySelectorAll('.tab-content');
-tabs.forEach(tab => tab.addEventListener('click', () => {
-  tabs.forEach(t => t.classList.remove('tab-active'));
-  contents.forEach(c => c.classList.add('hidden'));
-  tab.classList.add('tab-active');
-  document.getElementById(tab.dataset.tab).classList.remove('hidden');
-}));
-
-/* ---------- Structured Prompt Template ---------- */
-function buildExpertPrompt(role, domain, objectives) {
-  return `You will be acting as a domain expert to provide specialized advice and guidance. Your role and expertise area are defined below.
-
-<role>
-${role}
-</role>
-
-<domain_description>
-${domain}
-</domain_description>
-
-<key_objectives>
-${objectives}
-</key_objectives>
-
-You are ${role}, an expert in ${domain}. Your goal is to provide ${objectives}.
-
-Follow these core behavioral guidelines:
-
-**Context Usage:**
-- Base all responses strictly on the provided context below. Do not hallucinate or invent information not present in the context or your verified training knowledge.
-- If the context is insufficient to provide accurate advice, explicitly state "I don't have enough information about [specific missing details]" and ask for the needed information.
-- Do not make assumptions beyond what is clearly stated or reasonably inferred from the context.
-
-**Response Approach:**
-- Use step-by-step reasoning internally before responding, but present only your final answer unless specifically asked to show your thinking process.
-- Be proactive: if the user query implies you need additional information (such as target audience, budget, technical specifications, etc.), ask clarifying questions.
-- Keep responses concise, professional, and actionable.
-- Use bullet points or numbered lists when presenting multiple items or steps.
-- Maintain your expert role consistently throughout the interaction.
-
-**Safety and Accuracy:**
-- Only provide advice based on verified knowledge from the context or established best practices in your domain.
-- If uncertain about any aspect, say "I don't have enough information to provide accurate guidance on this" and suggest next steps.
-- Provide balanced, ethical advice that focuses on value creation rather than manipulation or harmful practices.
-
-**Output Format:**
-- For multi-step processes, use numbered lists.
-- End responses with a clear summary or recommended next action when relevant.
-- Keep language simple and direct while maintaining professional expertise.
-
-<context>
-{{CONTEXT}}
-</context>
-
-<user_query>
-{{USER_QUERY}}
-</user_query>
-
-Before providing your response, use the scratchpad below to analyze the context, identify what information you have available, determine if you need additional details, and plan your expert response.
-
-<scratchpad>
-[Think through the user query, assess the available context, identify any gaps in information needed to provide expert advice, and plan your response structure]
-</scratchpad>
-
-Provide your expert response here:`;
-}
-
-/* ---------- Settings & Models ---------- */
-async function fetchModels(apiKey) {
-  if (!apiKey) return;
-  try {
-    const res = await axios.get('https://api.groq.com/openai/v1/models', {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
+<script type="module">
+// ==========================================
+// 1. PWA SERVICE WORKER
+// ==========================================
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'spire-ide-v3';
+    self.addEventListener('install', e => self.skipWaiting());
+    self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+    self.addEventListener('fetch', e => {
+      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(()=>r)));
     });
-    const models = res.data.data.map(m => m.id).sort();
-    const sel = document.getElementById('modelSelect');
-    sel.innerHTML = '';
-    models.forEach(m => {
-      const opt = document.createElement('option');
-      opt.value = m;
-      opt.textContent = m;
-      sel.appendChild(opt);
-    });
-  } catch (err) {
-    console.error('Failed to fetch models:', err);
-    document.getElementById('modelSelect').innerHTML = '<option value="">Error loading models</option>';
-  }
-}
-
-function loadSettings() {
-  const apiKey = localStorage.getItem('groqApiKey') || '';
-  const model = localStorage.getItem('groqModel') || '';
-  const temp = localStorage.getItem('groqTemp') || '1';
-  const maxTokens = localStorage.getItem('groqMaxTokens') || '1024';
-  const prompt = localStorage.getItem('groqPrompt') || '';
-
-  document.getElementById('apiKey').value = apiKey;
-  document.getElementById('temperature').value = temp;
-  document.getElementById('tempValue').textContent = temp;
-  document.getElementById('maxTokens').value = maxTokens;
-  document.getElementById('machinePrompt').value = prompt;
-
-  if (apiKey) {
-    fetchModels(apiKey);
-    if (model) {
-      document.getElementById('modelSelect').value = model;
-    }
-  }
-}
-
-document.getElementById('temperature').addEventListener('input', e => {
-  document.getElementById('tempValue').textContent = e.target.value;
-});
-
-document.getElementById('saveSettings').addEventListener('click', () => {
-  const apiKey = document.getElementById('apiKey').value.trim();
-  const model = document.getElementById('modelSelect').value;
-  const temp = document.getElementById('temperature').value;
-  const maxTokens = document.getElementById('maxTokens').value;
-  const prompt = document.getElementById('machinePrompt').value;
-
-  localStorage.setItem('groqApiKey', apiKey);
-  localStorage.setItem('groqModel', model);
-  localStorage.setItem('groqTemp', temp);
-  localStorage.setItem('groqMaxTokens', maxTokens);
-  localStorage.setItem('groqPrompt', prompt);
-
-  if (apiKey) fetchModels(apiKey);
-  alert('Settings saved!');
-});
-
-/* ---------- Experts (AI Roles) ---------- */
-let experts = [
-  {
-    id: 'developer',
-    name: 'Senior React Developer',
-    domainDescription: 'Modern React, TypeScript, and frontend architecture',
-    keyObjectives: 'Write clean, performant, and maintainable React code; suggest best practices; debug complex UI issues',
-    temperature: 0.3,
-    maxTokens: 1024,
-    quickActions: ['Debug component', 'Optimize performance', 'Suggest hooks pattern']
-  },
-  {
-    id: 'seo_specialist',
-    name: 'SEO Specialist',
-    domainDescription: 'Search engine optimization, content strategy, and technical SEO',
-    keyObjectives: 'Analyze and improve website visibility, suggest keyword strategies, audit technical SEO issues',
-    temperature: 0.6,
-    maxTokens: 1024,
-    quickActions: ['Audit SEO', 'Suggest keywords', 'Improve meta tags']
-  },
-  {
-    id: 'product_manager',
-    name: 'Product Manager',
-    domainDescription: 'Product strategy, user stories, and roadmap planning',
-    keyObjectives: 'Define product requirements, prioritize features, write user stories',
-    temperature: 0.7,
-    maxTokens: 1024,
-    quickActions: ['Write user story', 'Prioritize backlog', 'Define MVP']
-  }
-];
-
-function loadExperts() {
-  const saved = localStorage.getItem('aiExperts');
-  if (saved) experts = JSON.parse(saved);
-  else {
-    // Auto-generate prompts for defaults
-    experts = experts.map(exp => ({
-      ...exp,
-      prompt: buildExpertPrompt(exp.name, exp.domainDescription, exp.keyObjectives)
-    }));
-  }
-  renderExperts();
-  populateRoleSelect();
-}
-
-function renderExperts() {
-  const list = document.getElementById('expertsList');
-  list.innerHTML = '';
-  experts.forEach(exp => {
-    const card = document.createElement('div');
-    card.className = 'expert-card';
-    card.innerHTML = `
-      <div class="flex justify-between">
-        <strong>${exp.name}</strong>
-        <button class="edit-expert text-sm bg-blue-100 px-2 py-1 rounded" data-id="${exp.id}">Edit</button>
-      </div>
-      <div class="text-xs text-gray-600 mt-1">${exp.domainDescription}</div>
-      <div class="text-xs text-gray-500">Actions: ${exp.quickActions.join(', ')}</div>
-    `;
-    list.appendChild(card);
-  });
-
-  document.querySelectorAll('.edit-expert').forEach(btn => {
-    btn.addEventListener('click', () => openExpertModal(btn.dataset.id));
-  });
-}
-
-function populateRoleSelect() {
-  const select = document.getElementById('roleSelect');
-  select.innerHTML = '';
-  experts.forEach(exp => {
-    const opt = document.createElement('option');
-    opt.value = exp.id;
-    opt.textContent = exp.name;
-    select.appendChild(opt);
-  });
-}
-
-function openExpertModal(id = null) {
-  const modal = document.getElementById('expertModal');
-  const title = document.getElementById('expertModalTitle');
-  const delBtn = document.getElementById('deleteExpertBtn');
-
-  if (id) {
-    const exp = experts.find(e => e.id === id);
-    document.getElementById('expertId').value = exp.id;
-    document.getElementById('expertName').value = exp.name;
-    document.getElementById('expertDomain').value = exp.domainDescription;
-    document.getElementById('expertObjectives').value = exp.keyObjectives;
-    document.getElementById('expertTemp').value = exp.temperature;
-    document.getElementById('expertTempVal').textContent = exp.temperature;
-    document.getElementById('expertMaxTokens').value = exp.maxTokens;
-    document.getElementById('expertQuickActions').value = exp.quickActions.join(', ');
-    title.textContent = 'Edit Expert';
-    delBtn.classList.remove('hidden');
-    delBtn.onclick = () => deleteExpert(id);
-  } else {
-    document.getElementById('expertId').value = '';
-    document.getElementById('expertName').value = '';
-    document.getElementById('expertDomain').value = '';
-    document.getElementById('expertObjectives').value = '';
-    document.getElementById('expertTemp').value = 1;
-    document.getElementById('expertTempVal').textContent = '1.0';
-    document.getElementById('expertMaxTokens').value = 1024;
-    document.getElementById('expertQuickActions').value = '';
-    title.textContent = 'Add New Expert';
-    delBtn.classList.add('hidden');
-  }
-
-  modal.style.display = 'flex';
-}
-
-function deleteExpert(id) {
-  if (confirm('Delete this expert?')) {
-    experts = experts.filter(e => e.id !== id);
-    saveExperts();
-    renderExperts();
-    populateRoleSelect();
-    document.getElementById('expertModal').style.display = 'none';
-  }
-}
-
-function saveExperts() {
-  localStorage.setItem('aiExperts', JSON.stringify(experts));
-}
-
-document.getElementById('addExpertBtn').addEventListener('click', () => openExpertModal());
-document.getElementById('expertTemp').addEventListener('input', e => {
-  document.getElementById('expertTempVal').textContent = e.target.value;
-});
-document.getElementById('saveExpert').addEventListener('click', () => {
-  const id = document.getElementById('expertId').value || Date.now().toString();
-  const name = document.getElementById('expertName').value.trim();
-  const domain = document.getElementById('expertDomain').value.trim();
-  const objectives = document.getElementById('expertObjectives').value.trim();
-  const temp = parseFloat(document.getElementById('expertTemp').value);
-  const maxTokens = parseInt(document.getElementById('expertMaxTokens').value);
-  const quickActions = document.getElementById('expertQuickActions').value.split(',').map(a => a.trim()).filter(Boolean);
-
-  if (!name || !domain || !objectives) {
-    alert('All fields are required.');
-    return;
-  }
-
-  const prompt = buildExpertPrompt(name, domain, objectives);
-  const exp = { id, name, domainDescription: domain, keyObjectives: objectives, prompt, temperature: temp, maxTokens, quickActions };
-  const idx = experts.findIndex(e => e.id === id);
-  if (idx >= 0) {
-    experts[idx] = exp;
-  } else {
-    experts.push(exp);
-  }
-
-  saveExperts();
-  renderExperts();
-  populateRoleSelect();
-  document.getElementById('expertModal').style.display = 'none';
-});
-
-document.getElementById('cancelExpert').addEventListener('click', () => {
-  document.getElementById('expertModal').style.display = 'none';
-});
-document.getElementById('closeExpertModal').addEventListener('click', () => {
-  document.getElementById('expertModal').style.display = 'none';
-});
-
-/* ---------- Projects ---------- */
-let projects = [];
-const projectsList = document.getElementById('projectsList');
-
-function loadProjects() {
-  const saved = localStorage.getItem('aiProjects');
-  if (saved) projects = JSON.parse(saved);
-  updateProjectsUI();
-  populateProjectSelect();
-}
-
-function updateProjectsUI() {
-  projectsList.innerHTML = '';
-  if (projects.length === 0) {
-    projectsList.innerHTML = '<p class="text-gray-500 text-center">No projects added yet.</p>';
-    return;
-  }
-  projects.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'project-card cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-md';
-    card.innerHTML = `
-      <div><strong>${p.urls && p.urls.length ? p.urls[0] : 'Manual Project'}</strong></div>
-      <div class="text-xs text-gray-600">Files: ${p.files.length}, Code: ${p.code ? 'Yes' : 'No'}</div>
-    `;
-    card.addEventListener('click', () => inspectProject(p.id));
-    projectsList.appendChild(card);
-  });
-}
-
-function populateProjectSelect() {
-  const sel = document.getElementById('projectSelect');
-  sel.innerHTML = '<option value="">None</option>';
-  projects.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p.id;
-    opt.textContent = p.urls && p.urls.length ? p.urls[0] : `Project ${p.id}`;
-    sel.appendChild(opt);
-  });
-}
-
-document.getElementById('addProject').addEventListener('click', async () => {
-  const urlsText = document.getElementById('projectUrls').value.trim();
-  const urls = urlsText ? urlsText.split('\n').map(u => u.trim()).filter(Boolean) : [];
-  const manualCode = document.getElementById('manualCode').value.trim();
-  const filesInput = document.getElementById('projectFile').files;
-  const files = [];
-
-  for (let file of filesInput) {
-    if (file.name.endsWith('.zip')) {
-      try {
-        const zip = await JSZip.loadAsync(file);
-        for (let fname in zip.files) {
-          const content = await zip.files[fname].async('string');
-          files.push({ name: fname, content });
-        }
-      } catch (err) {
-        alert('Error reading ZIP file.');
-        return;
-      }
-    } else {
-      try {
-        const text = await file.text();
-        files.push({ name: file.name, content: text });
-      } catch (err) {
-        alert('Error reading file.');
-        return;
-      }
-    }
-  }
-
-  const project = {
-    id: Date.now().toString(),
-    urls,
-    code: manualCode,
-    files,
-    enriched: null,
-    createdAt: new Date().toISOString()
-  };
-
-  projects.push(project);
-  localStorage.setItem('aiProjects', JSON.stringify(projects));
-  updateProjectsUI();
-  populateProjectSelect();
-  alert('Project added!');
-});
-
-function inspectProject(id) {
-  const p = projects.find(proj => proj.id === id);
-  if (!p) return;
-
-  document.getElementById('inspectProjectId').value = p.id;
-  document.getElementById('inspectUrls').textContent = p.urls.join(', ') || '—';
-  document.getElementById('inspectFiles').textContent = p.files.map(f => f.name).join(', ') || '—';
-  document.getElementById('inspectCode').textContent = p.code || '—';
-
-  document.getElementById('inspectionForm').classList.remove('hidden');
-  document.getElementById('artifactsList').classList.add('hidden');
-  document.getElementById('artifactsList').innerHTML = '';
-
-  ['taskSummarize', 'taskTechnical', 'taskCategorize', 'taskAppJson'].forEach(id => {
-    document.getElementById(id).checked = false;
-  });
-
-  document.getElementById('projectDetailModal').style.display = 'flex';
-}
-
-async function generateArtifactContent(project, tasks) {
-  const apiKey = localStorage.getItem('groqApiKey');
-  if (!apiKey) {
-    alert('Please set your Groq API key in Settings to generate AI insights.');
-    return {};
-  }
-
-  let context = '';
-  if (project.urls.length) context += `URLs: ${project.urls.join(', ')}\n`;
-  if (project.code) context += `Code:\n${project.code}\n`;
-  project.files.forEach(f => {
-    context += `File: ${f.name}\n${f.content.substring(0, 1000)}...\n`;
-  });
-
-  const model = localStorage.getItem('groqModel') || 'llama-3.3-70b-versatile';
-  const results = {};
-  const promises = [];
-
-  if (tasks.summarize) {
-    promises.push(
-      axios.post('https://api.groq.com/openai/v1/chat/completions', {
-        model,
-        messages: [{ role: 'user', content: `Summarize this project in 2-3 sentences:\n\n${context}` }],
-        temperature: 0.7,
-        max_tokens: 300
-      }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
-      .then(res => {
-        results.summary = res.data.choices?.[0]?.message?.content || 'Summary not available.';
-      })
-    );
-  }
-
-  if (tasks.technical) {
-    promises.push(
-      axios.post('https://api.groq.com/openai/v1/chat/completions', {
-        model,
-        messages: [{ role: 'user', content: `Provide a technical description of this project (stack, architecture, key features):\n\n${context}` }],
-        temperature: 0.5,
-        max_tokens: 500
-      }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
-      .then(res => {
-        results.technical = res.data.choices?.[0]?.message?.content || 'Technical description not available.';
-      })
-    );
-  }
-
-  if (tasks.categorize) {
-    promises.push(
-      axios.post('https://api.groq.com/openai/v1/chat/completions', {
-        model,
-        messages: [{ role: 'user', content: `Categorize this project. Return only a single category name (e.g., "E-commerce", "Productivity", "Social Media"):\n\n${context}` }],
-        temperature: 0.3,
-        max_tokens: 50
-      }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
-      .then(res => {
-        results.category = res.data.choices?.[0]?.message?.content?.trim() || 'Uncategorized';
-      })
-    );
-  }
-
-  if (tasks.appJson) {
-    promises.push(
-      axios.post('https://api.groq.com/openai/v1/chat/completions', {
-        model,
-        messages: [{ role: 'user', content: `Generate a valid JSON object with these fields: title (string), description (string), url (string, use first URL or empty), category (string), tags (array of 3-5 strings), technologies (array of strings). Use this context:\n\n${context}` }],
-        temperature: 0.6,
-        max_tokens: 500
-      }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
-      .then(res => {
-        let jsonStr = res.data.choices?.[0]?.message?.content || '{}';
-        const match = jsonStr.match(/```(?:json)?\s*({[\s\S]*?})\s*```/);
-        if (match) jsonStr = match[1];
-        try {
-          results.appJson = JSON.parse(jsonStr);
-        } catch (e) {
-          results.appJson = { error: 'Failed to parse JSON', raw: jsonStr };
-        }
-      })
-    );
-  }
-
-  await Promise.all(promises);
-  return results;
-}
-
-document.getElementById('submitProjectAnalysis').addEventListener('click', async () => {
-  const id = document.getElementById('inspectProjectId').value;
-  const project = projects.find(p => p.id === id);
-  if (!project) return;
-
-  const tasks = {
-    summarize: document.getElementById('taskSummarize').checked,
-    technical: document.getElementById('taskTechnical').checked,
-    categorize: document.getElementById('taskCategorize').checked,
-    appJson: document.getElementById('taskAppJson').checked
-  };
-
-  if (!Object.values(tasks).some(Boolean)) {
-    alert('Please select at least one task.');
-    return;
-  }
-
-  document.getElementById('submitProjectAnalysis').textContent = 'Generating...';
-  document.getElementById('submitProjectAnalysis').disabled = true;
-
-  const results = await generateArtifactContent(project, tasks);
-  project.enriched = { tasks, ...results, analyzedAt: new Date().toISOString() };
-  localStorage.setItem('aiProjects', JSON.stringify(projects));
-
-  renderArtifacts(project.enriched);
-
-  document.getElementById('submitProjectAnalysis').textContent = 'Submit';
-  document.getElementById('submitProjectAnalysis').disabled = false;
-});
-
-function renderArtifacts(enriched) {
-  const list = document.getElementById('artifactsList');
-  const form = document.getElementById('inspectionForm');
-  form.classList.add('hidden');
-  list.classList.remove('hidden');
-  list.innerHTML = '<h4 class="font-bold">Generated Artifacts</h4>';
-
-  if (enriched.summary) {
-    addArtifactItem('Summary', 'summary.md', enriched.summary, (val) => {
-      enriched.summary = val;
-      saveEnriched();
-    });
-  }
-
-  if (enriched.technical) {
-    addArtifactItem('Technical Description', 'technical.md', enriched.technical, (val) => {
-      enriched.technical = val;
-      saveEnriched();
-    });
-  }
-
-  if (enriched.category) {
-    addArtifactItem('Category', 'category.txt', enriched.category, (val) => {
-      enriched.category = val;
-      saveEnriched();
-    });
-  }
-
-  if (enriched.appJson) {
-    const jsonStr = typeof enriched.appJson === 'string' ? enriched.appJson : JSON.stringify(enriched.appJson, null, 2);
-    addArtifactItem('App Metadata', 'app.json', jsonStr, (val) => {
-      try {
-        enriched.appJson = JSON.parse(val);
-        saveEnriched();
-      } catch (e) {
-        alert('Invalid JSON. Please fix syntax.');
-      }
-    });
-  }
-}
-
-function addArtifactItem(title, filename, content, onSave) {
-  const list = document.getElementById('artifactsList');
-  const item = document.createElement('div');
-  item.className = 'artifact-item';
-  item.innerHTML = `
-    <div><strong>${title}</strong> <code>${filename}</code></div>
-    <div class="artifact-actions">
-      <button class="edit-btn bg-gray-200 px-2 py-1 text-xs rounded">Edit</button>
-    </div>
-    <pre class="artifact-content hidden" contenteditable="true">${content}</pre>
   `;
-  list.appendChild(item);
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  navigator.serviceWorker.register(URL.createObjectURL(blob));
+}
 
-  const editBtn = item.querySelector('.edit-btn');
-  const contentEl = item.querySelector('.artifact-content');
+let state = {
+  projects: [], currentProjectId: null, settings: {},
+  editorInstance: null, diffInstance: null, currentFile: null, pendingChanges: null
+};
 
-  editBtn.addEventListener('click', () => {
-    if (contentEl.classList.contains('hidden')) {
-      contentEl.classList.remove('hidden');
-      editBtn.textContent = 'Save';
-    } else {
-      const newValue = contentEl.textContent;
-      onSave(newValue);
-      contentEl.classList.add('hidden');
-      editBtn.textContent = 'Edit';
+const $ = id => document.getElementById(id);
+mermaid.initialize({ startOnLoad: false, theme: 'default' });
+
+// ==========================================
+// 2. INDEXED DB (Projects, Vectors, Snapshots)
+// ==========================================
+const openDB = () => new Promise((resolve, reject) => {
+  const req = indexedDB.open('spire-ide-db', 4);
+  req.onupgradeneeded = e => {
+    const db = e.target.result;
+    if (!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' });
+    if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', { keyPath: 'key' });
+    if (!db.objectStoreNames.contains('vectors')) {
+      const vs = db.createObjectStore('vectors', { keyPath: 'id' });
+      vs.createIndex('projectId', 'projectId');
     }
-  });
-}
-
-function saveEnriched() {
-  localStorage.setItem('aiProjects', JSON.stringify(projects));
-}
-
-document.getElementById('closeProjectModal').addEventListener('click', () => {
-  document.getElementById('projectDetailModal').style.display = 'none';
-});
-
-/* ---------- Chat System ---------- */
-let chatHistory = [];
-let currentChatId = null;
-let chatStartTime = null;
-let tokenCount = 0;
-
-function loadChatHistory() {
-  const saved = localStorage.getItem('aiChatHistory');
-  if (saved) chatHistory = JSON.parse(saved);
-  renderChatHistory();
-}
-
-function initializeNewChat() {
-  const newChat = {
-    id: Date.now().toString(),
-    title: 'New Chat',
-    messages: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    tokenCount: 0,
-    duration: 0
+    if (!db.objectStoreNames.contains('snapshots')) {
+      const sp = db.createObjectStore('snapshots', { keyPath: 'id' });
+      sp.createIndex('projectId', 'projectId');
+    }
   };
-  chatHistory.push(newChat);
-  currentChatId = newChat.id;
-  chatStartTime = new Date();
-  tokenCount = 0;
-  document.getElementById('chatBox').innerHTML = '';
-  document.getElementById('chatInput').value = '';
-  document.getElementById('chatStats').classList.add('hidden');
-  localStorage.setItem('aiChatHistory', JSON.stringify(chatHistory));
-  renderChatHistory();
-  updateChatStats();
-}
-
-function renderChatHistory() {
-  const list = document.getElementById('chatHistoryList');
-  list.innerHTML = '';
-  if (chatHistory.length === 0) {
-    list.innerHTML = '<p class="text-gray-500 text-center py-2">No chats yet.</p>';
-    return;
-  }
-  chatHistory.slice().reverse().forEach(chat => {
-    const messageCount = chat.messages.length;
-    const duration = chat.duration ? formatDuration(chat.duration) : '0s';
-    const lastMsg = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1].content.substring(0, 40) + '...' : 'No messages';
-
-    const item = document.createElement('div');
-    item.className = `chat-history-item ${chat.id === currentChatId ? 'active' : ''}`;
-    item.setAttribute('data-id', chat.id);
-    item.innerHTML = `
-      <div class="font-medium">${chat.title}</div>
-      <div class="text-xs text-gray-600">Msgs: ${messageCount} • ${duration}</div>
-      <div class="text-xs mt-1">${lastMsg}</div>
-    `;
-    item.addEventListener('click', () => loadChat(chat.id));
-    list.appendChild(item);
-  });
-}
-
-function loadChat(id) {
-  const chat = chatHistory.find(c => c.id === id);
-  if (!chat) return;
-
-  currentChatId = id;
-  chatStartTime = new Date(chat.createdAt);
-  tokenCount = chat.tokenCount;
-
-  document.getElementById('chatBox').innerHTML = '';
-  chat.messages.forEach(msg => appendChatMessage(msg.sender, msg.content, false));
-  renderChatHistory();
-  updateChatStats();
-
-  const roleId = chat.roleId || 'developer';
-  const expert = experts.find(e => e.id === roleId) || experts[0];
-  updateQuickActions(expert.quickActions);
-}
-
-function appendChatMessage(sender, content, save = true) {
-  const div = document.createElement('div');
-  div.className = `chat-message ${sender === 'User' ? 'user-message' : 'ai-message'} animate-fade-in-up`;
-  div.innerHTML = `<strong>${sender}:</strong> ${content}`;
-  document.getElementById('chatBox').appendChild(div);
-  document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
-
-  if (save) {
-    const chat = chatHistory.find(c => c.id === currentChatId);
-    chat.messages.push({ sender, content, timestamp: new Date().toISOString() });
-    if (chat.messages.length === 1) chat.title = content.substring(0, 30) + (content.length > 30 ? '...' : '');
-    chat.updatedAt = new Date().toISOString();
-    chat.tokenCount = tokenCount;
-    if (chatStartTime) {
-      const now = new Date();
-      chat.duration = Math.floor((now - chatStartTime) / 1000);
-    }
-    localStorage.setItem('aiChatHistory', JSON.stringify(chatHistory));
-    updateChatStats();
-  }
-}
-
-function updateChatStats() {
-  const chat = chatHistory.find(c => c.id === currentChatId);
-  if (!chat) {
-    document.getElementById('chatStats').classList.add('hidden');
-    return;
-  }
-  document.getElementById('messageCount').textContent = chat.messages.length;
-  document.getElementById('tokenCount').textContent = chat.tokenCount;
-  document.getElementById('duration').textContent = formatDuration(chat.duration);
-  document.getElementById('chatStats').classList.remove('hidden');
-}
-
-function formatDuration(seconds) {
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}m ${s}s`;
-}
-
-function updateQuickActions(actions) {
-  const container = document.getElementById('quickActions');
-  container.innerHTML = '';
-  actions.forEach(action => {
-    const btn = document.createElement('button');
-    btn.className = 'action-button';
-    btn.textContent = action;
-    btn.addEventListener('click', () => {
-      document.getElementById('chatInput').value = action;
-      document.getElementById('sendChat').click();
-    });
-    container.appendChild(btn);
-  });
-}
-
-document.getElementById('newChatBtn').addEventListener('click', initializeNewChat);
-document.getElementById('clearChat').addEventListener('click', () => {
-  if (confirm('Clear this chat?')) {
-    const chat = chatHistory.find(c => c.id === currentChatId);
-    chat.messages = [];
-    chat.tokenCount = 0;
-    chat.duration = 0;
-    document.getElementById('chatBox').innerHTML = '';
-    updateChatStats();
-    localStorage.setItem('aiChatHistory', JSON.stringify(chatHistory));
-  }
+  req.onsuccess = () => resolve(req.result);
+  req.onerror = reject;
 });
 
-document.getElementById('sendChat').addEventListener('click', async () => {
-  const input = document.getElementById('chatInput');
-  const message = input.value.trim();
-  if (!message) return;
+const dbOp = async (store, op, data=null) => {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, op === 'getAll' || op === 'get' ? 'readonly' : 'readwrite');
+    const s = tx.objectStore(store);
+    let req;
+    if (op === 'put') req = s.put(data);
+    else if (op === 'delete') req = s.delete(data);
+    else if (op === 'get') req = s.get(data);
+    else req = s.getAll();
+    req.onsuccess = () => res(req.result);
+    req.onerror = rej;
+  });
+};
 
-  appendChatMessage('User', message);
-  input.value = '';
+// ==========================================
+// 3. INLINE WEB WORKER (Embeddings & LLM)
+// ==========================================
+// We use a blob to create a worker dynamically without needing an external file
+const workerCode = `
+  import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1/dist/transformers.min.js';
+  env.allowLocalModels = false; // Force CDN fetching for zero-install
+  let embedder = null;
+  let generator = null;
 
-  const apiKey = localStorage.getItem('groqApiKey');
-  if (!apiKey) {
-    appendChatMessage('AI', 'Please set your Groq API key in Settings.');
-    return;
-  }
-
-  const roleId = document.getElementById('roleSelect').value;
-  const expert = experts.find(e => e.id === roleId) || experts[0];
-  const projectId = document.getElementById('projectSelect').value;
-  let projectContext = '';
-
-  if (projectId) {
-    const proj = projects.find(p => p.id === projectId);
-    if (proj) {
-      projectContext += `Project URLs: ${proj.urls.join(', ')}\n`;
-      if (proj.code) projectContext += `Code:\n${proj.code}\n`;
-      proj.files.forEach(f => {
-        projectContext += `File: ${f.name}\n${f.content.substring(0, 500)}...\n`;
-      });
-      if (proj.enriched) {
-        projectContext += `\nEnriched Data:\n${JSON.stringify(proj.enriched, null, 2)}\n`;
+  self.onmessage = async (e) => {
+    const { type, id, text, model } = e.data;
+    try {
+      if (type === 'embed') {
+        if (!embedder) embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+        const out = await embedder(text, { pooling: 'mean', normalize: true });
+        self.postMessage({ id, type: 'embed_done', data: Array.from(out.data) });
+      } else if (type === 'generate') {
+        if (!generator || generator.model !== model) {
+           generator = await pipeline('text-generation', model, { device: 'webgpu' });
+           generator.model = model;
+        }
+        const out = await generator(text, { max_new_tokens: 300 });
+        self.postMessage({ id, type: 'generate_done', data: out[0].generated_text });
       }
+    } catch(err) {
+      self.postMessage({ id, type: 'error', error: err.message });
+    }
+  };
+`;
+const aiWorker = new Worker(URL.createObjectURL(new Blob([workerCode], {type: 'application/javascript'})), {type: 'module'});
+let workerJobCounter = 0;
+const workerJobs = new Map();
+
+aiWorker.onmessage = (e) => {
+  const { id, type, data, error } = e.data;
+  if (workerJobs.has(id)) {
+    if (type === 'error') workerJobs.get(id).reject(new Error(error));
+    else workerJobs.get(id).resolve(data);
+    workerJobs.delete(id);
+  }
+};
+
+const runWorkerJob = (msg) => new Promise((resolve, reject) => {
+  const id = ++workerJobCounter;
+  workerJobs.set(id, { resolve, reject });
+  aiWorker.postMessage({ id, ...msg });
+});
+
+async function getEmbedding(text) {
+  return await runWorkerJob({ type: 'embed', text: text.substring(0, 500) });
+}
+
+// Math Utility for Embeddings
+function cosineSim(a, b) {
+  let dot=0, magA=0, magB=0;
+  for(let i=0;i<a.length;i++){ dot+=a[i]*b[i]; magA+=a[i]*a[i]; magB+=b[i]*b[i]; }
+  return dot / (Math.sqrt(magA)*Math.sqrt(magB));
+}
+
+// Chunking Logic (Overlapping)
+function chunkText(text, size=500, overlap=50) {
+  const chunks = [];
+  if (!text) return chunks;
+  for(let i=0; i<text.length; i += size - overlap){
+    chunks.push(text.slice(i, i+size));
+    if (i + size >= text.length) break;
+  }
+  return chunks;
+}
+
+// ==========================================
+// 4. LLM ROUTER (Hybrid)
+// ==========================================
+async function smartLLM(prompt, forceAPI = false) {
+  const mode = state.settings.localModel || "none";
+  
+  // Try WebGPU Worker if enabled and prompt is short
+  if (mode !== "none" && !forceAPI && prompt.length < 1500) {
+    $('agentStatus').textContent = "🤖 Local WebGPU Thinking...";
+    try {
+      const res = await runWorkerJob({ type: 'generate', text: prompt, model: mode });
+      $('agentStatus').textContent = "";
+      return res;
+    } catch(e) {
+      console.warn("Local Worker failed, falling back to API", e);
     }
   }
 
-  const fullPrompt = expert.prompt
-    .replace('{{CONTEXT}}', projectContext || 'No additional context provided.')
-    .replace('{{USER_QUERY}}', message);
+  // Fallback / Main API
+  if (!state.settings.apiKey) throw new Error("No API Key. Set it in settings.");
+  $('agentStatus').textContent = "☁️ API Processing...";
+  const res = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+    model: 'llama3-8b-8192',
+    messages: [
+      { role: 'system', content: 'You are an elite AI system architect and coder. Output JSON only if asked.' }, 
+      { role: 'user', content: prompt }
+    ],
+    temperature: 0.2
+  }, { headers: { 'Authorization': `Bearer ${state.settings.apiKey}` } });
+  
+  $('agentStatus').textContent = "";
+  return res.data.choices[0].message.content;
+}
+
+// ==========================================
+// 5. AST & INTELLIGENCE ENGINE
+// ==========================================
+function parseAST(code) {
+  try { return Babel.packages.parser.parse(code, { sourceType: "module", plugins: ["jsx", "typescript"] }); } 
+  catch(e) { return null; }
+}
+
+// Expanded AST Walker
+function walkAST(node, visitor) {
+  if (!node) return;
+  if (Array.isArray(node)) { node.forEach(n => walkAST(n, visitor)); return; }
+  if (visitor[node.type]) visitor[node.type](node);
+  for (const key in node) {
+    if (typeof node[key] === 'object' && key !== 'loc') walkAST(node[key], visitor);
+  }
+}
+
+function extractSymbols(code) {
+  const ast = parseAST(code);
+  const symbols = { functions: [], classes: [], imports: [], exports: [], calls: [], returns: 0 };
+  if (!ast) return symbols;
+
+  walkAST(ast, {
+    FunctionDeclaration: n => { if(n.id) symbols.functions.push(n.id.name); },
+    VariableDeclarator: n => { if(n.init?.type==='ArrowFunctionExpression' && n.id) symbols.functions.push(n.id.name); },
+    ClassDeclaration: n => { if(n.id) symbols.classes.push(n.id.name); },
+    ImportDeclaration: n => { if(n.source) symbols.imports.push(n.source.value); },
+    ExportNamedDeclaration: n => { if(n.declaration?.id) symbols.exports.push(n.declaration.id.name); },
+    CallExpression: n => { if(n.callee?.name) symbols.calls.push(n.callee.name); },
+    ReturnStatement: () => { symbols.returns++; }
+  });
+  return symbols;
+}
+
+function buildProjectGraph(project) {
+  const edges = [];
+  project.files.forEach(f => {
+    const sym = extractSymbols(f.content);
+    sym.imports.forEach(imp => {
+      const cleanImp = imp.replace(/['"\.\/]/g, '');
+      const cleanFile = f.name.replace(/['"\.\/]/g, '');
+      edges.push(`${cleanFile} --> ${cleanImp}`);
+    });
+  });
+  return edges.length === 0 ? "graph TD\n  Project --> No_Dependencies" : `graph TD\n${edges.join('\n')}`;
+}
+
+// ==========================================
+// 6. MINI-GIT & FILE SYSTEM
+// ==========================================
+function getLanguageFromFilename(filename) {
+  if(filename.endsWith('.html')) return 'html';
+  if(filename.endsWith('.css')) return 'css';
+  if(filename.endsWith('.json')) return 'json';
+  if(filename.endsWith('.ts') || filename.endsWith('.tsx')) return 'typescript';
+  if(filename.endsWith('.md')) return 'markdown';
+  if(filename.endsWith('.yml') || filename.endsWith('.yaml')) return 'yaml';
+  return 'javascript';
+}
+
+async function saveSnapshot(projectId, label = "Manual Snapshot") {
+  const proj = state.projects.find(p => p.id === projectId);
+  if(!proj) return;
+  // Deep clone project files
+  const snapshot = {
+    id: crypto.randomUUID(),
+    projectId,
+    label,
+    timestamp: Date.now(),
+    files: JSON.parse(JSON.stringify(proj.files))
+  };
+  await dbOp('snapshots', 'put', snapshot);
+}
+
+// ==========================================
+// 7. AUTONOMOUS AGENT LOGIC
+// ==========================================
+async function runAutonomousAgent(request) {
+  const proj = state.projects.find(p => p.id === state.currentProjectId);
+  if(!proj) return alert("Select a project");
+  
+  appendChat('User', request);
+  
+  // 1. Semantic Search
+  $('agentStatus').textContent = "🔍 Vector Search in Worker...";
+  const vec = await getEmbedding(request);
+  const allVectors = await dbOp('vectors', 'getAll');
+  const projVecs = allVectors.filter(v => v.projectId === proj.id);
+  projVecs.forEach(v => v.score = cosineSim(vec, v.embedding));
+  const hits = projVecs.sort((a,b) => b.score - a.score).slice(0, 4);
+  
+  // 2. Build AST Context
+  $('agentStatus').textContent = "🧠 Analyzing AST...";
+  let context = hits.map(h => {
+    const f = proj.files.find(file => file.name === h.fileName);
+    if (!f) return '';
+    const sym = extractSymbols(f.content);
+    return `FILE: ${f.name}\nFUNCTIONS: ${sym.functions.join(',')}\nIMPORTS: ${sym.imports.join(',')}\nCONTENT:\n${f.content}`;
+  }).join('\n\n---\n\n');
+  
+  if(!context) context = proj.files.slice(0,3).map(f => `FILE: ${f.name}\n${f.content}`).join('\n');
+
+  const prompt = `
+You are an autonomous AI Copilot. 
+Context:
+${context}
+
+Task: ${request}
+
+Plan the solution, output code changes safely.
+Return ONLY valid JSON in this exact format:
+{
+  "explanation": "Brief reasoning",
+  "changes": [
+    { "file": "existingOrNewFilename.js", "newContent": "entire updated file code here" }
+  ]
+}
+  `;
 
   try {
-    const model = localStorage.getItem('groqModel') || 'llama-3.3-70b-versatile';
-    const res = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-      model,
-      messages: [{ role: 'user', content: fullPrompt }],
-      temperature: expert.temperature,
-      max_tokens: expert.maxTokens
-    }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
-
-    const aiMsg = res.data.choices?.[0]?.message?.content || 'No response.';
-    const tokens = res.data.usage?.total_tokens || 0;
-    tokenCount += tokens;
-
-    appendChatMessage('AI', aiMsg);
-  } catch (err) {
-    console.error(err);
-    appendChatMessage('AI', `Error: ${err.message || 'Failed to contact AI'}`);
+    const rawRes = await smartLLM(prompt, true);
+    
+    let jsonMatch = rawRes.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON found in response");
+    const plan = JSON.parse(jsonMatch[0]);
+    
+    appendChat('AI', `**Plan:** ${plan.explanation}\n\nGenerated ${plan.changes.length} file changes. Review diffs to accept.`);
+    state.pendingChanges = plan.changes;
+    
+    if(plan.changes.length > 0) {
+      previewDiff(plan.changes[0].file, plan.changes[0].newContent);
+    }
+  } catch(e) {
+    appendChat('System Error', `Failed: ${e.message}`);
   }
-});
+}
 
-/* ---------- Export ---------- */
-document.getElementById('exportChatBtn').addEventListener('click', () => {
-  const chat = chatHistory.find(c => c.id === currentChatId);
-  if (!chat) {
-    alert('No chat to export.');
-    return;
+// ==========================================
+// 8. IDE & UI WORKFLOW
+// ==========================================
+function appendChat(role, text) {
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role==='User'?'msg-user':'msg-ai'}`;
+  const html = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+  div.innerHTML = `<div class="font-bold text-[10px] uppercase mb-1 opacity-75">${role}</div>${html}`;
+  $('chatHistory').appendChild(div);
+  $('chatHistory').scrollTop = $('chatHistory').scrollHeight;
+}
+
+function renderFileTree() {
+  const proj = state.projects.find(p => p.id === state.currentProjectId);
+  const tree = $('fileTree');
+  tree.innerHTML = '';
+  if(!proj) return;
+  
+  proj.files.forEach(f => {
+    const el = document.createElement('div');
+    el.className = `file-item ${state.currentFile?.name === f.name ? 'file-active' : ''}`;
+    el.innerHTML = `📄 ${f.name}`;
+    el.onclick = () => openFile(f);
+    tree.appendChild(el);
+  });
+}
+
+function openFile(file) {
+  state.currentFile = file;
+  renderFileTree();
+  switchToView('editor');
+  
+  window.monacoReady.then(monaco => {
+    const lang = getLanguageFromFilename(file.name);
+    monaco.editor.setModelLanguage(state.editorInstance.getModel(), lang);
+    state.editorInstance.setValue(file.content);
+  });
+}
+
+function switchToView(view) {
+  ['editor', 'diffEditor', 'graphView', 'diffActionBar'].forEach(id => $(id).classList.add('hidden'));
+  ['tabCode', 'tabDiff', 'tabGraph'].forEach(id => $(id).classList.remove('text-white', 'bg-slate-700'));
+  
+  if (view === 'editor') {
+    $('editor').classList.remove('hidden');
+    $('tabCode').classList.add('text-white', 'bg-slate-700');
+  } else if (view === 'diff') {
+    $('diffEditor').classList.remove('hidden');
+    $('tabDiff').classList.remove('hidden', 'text-slate-400');
+    $('tabDiff').classList.add('text-white', 'bg-slate-700');
+    $('diffActionBar').classList.remove('hidden');
+  } else if (view === 'graph') {
+    $('graphView').classList.remove('hidden');
+    $('tabGraph').classList.remove('hidden', 'text-slate-400');
+    $('tabGraph').classList.add('text-white', 'bg-slate-700');
   }
-  document.getElementById('exportFilename').value = `chat_${chat.title.replace(/\s+/g, '_')}`;
-  document.getElementById('exportModal').style.display = 'flex';
-});
+}
 
-document.getElementById('confirmExport').addEventListener('click', () => {
-  const format = document.getElementById('exportFormat').value;
-  const filename = document.getElementById('exportFilename').value || 'chat_export';
-  const chat = chatHistory.find(c => c.id === currentChatId);
-  if (!chat) return;
+function previewDiff(filename, newContent) {
+  const proj = state.projects.find(p => p.id === state.currentProjectId);
+  const existingFile = proj.files.find(f => f.name === filename);
+  const originalContent = existingFile ? existingFile.content : "// New File\n";
+  
+  switchToView('diff');
+  
+  window.monacoReady.then(monaco => {
+    const lang = getLanguageFromFilename(filename);
+    const origModel = monaco.editor.createModel(originalContent, lang);
+    const modModel = monaco.editor.createModel(newContent, lang);
+    state.diffInstance.setModel({ original: origModel, modified: modModel });
+  });
+}
 
-  let content = '', mimeType = '';
-  switch (format) {
-    case 'txt':
-      content = `Chat: ${chat.title}\nCreated: ${new Date(chat.createdAt).toLocaleString()}\n\n`;
-      chat.messages.forEach(msg => {
-        content += `${msg.sender}: ${msg.content}\n\n`;
-      });
-      mimeType = 'text/plain';
-      break;
-    case 'json':
-      content = JSON.stringify(chat, null, 2);
-      mimeType = 'application/json';
-      break;
-    case 'html':
-      content = `
-        <html><head><title>${chat.title}</title><style>body{font-family:sans-serif;margin:20px;}.msg{margin:10px 0;padding:10px;border-radius:5px;}.user{background:#e0f2fe;}.ai{background:#f3f4f6;}</style></head>
-        <body><h1>${chat.title}</h1><p>Created: ${new Date(chat.createdAt).toLocaleString()}</p>
-        ${chat.messages.map(msg => `<div class="msg ${msg.sender === 'User' ? 'user' : 'ai'}"><strong>${msg.sender}:</strong> ${msg.content.replace(/\n/g, '<br>')}</div>`).join('')}
-        </body></html>
-      `;
-      mimeType = 'text/html';
-      break;
+// Diff Actions (Triggers Snapshot)
+$('btnAcceptDiff').onclick = async () => {
+  if(!state.pendingChanges) return;
+  
+  // Create snapshot BEFORE applying changes
+  await saveSnapshot(state.currentProjectId, "Before AI Changes");
+  
+  const proj = state.projects.find(p => p.id === state.currentProjectId);
+  for (const c of state.pendingChanges) {
+    const f = proj.files.find(file => file.name === c.file);
+    if(f) f.content = c.newContent;
+    else proj.files.push({ name: c.file, content: c.newContent });
   }
+  
+  await dbOp('projects', 'put', proj);
+  state.pendingChanges = null;
+  
+  appendChat('System', '✅ Changes Applied & Snapshot Saved');
+  renderFileTree();
+  if (state.currentFile) openFile(state.currentFile);
+  else switchToView('editor');
+};
 
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${filename}.${format}`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  document.getElementById('exportModal').style.display = 'none';
+$('btnRejectDiff').onclick = () => {
+  state.pendingChanges = null;
+  appendChat('System', '❌ Changes Rejected');
+  switchToView('editor');
+};
+
+// ==========================================
+// 9. INITIALIZATION & EVENTS
+// ==========================================
+async function init() {
+  const rawProjects = await dbOp('projects', 'getAll');
+  state.projects = rawProjects || [];
+  
+  const sets = await dbOp('settings', 'getAll');
+  sets.forEach(s => state.settings[s.key] = s.value);
+  if(state.settings.apiKey) $('apiKey').value = state.settings.apiKey;
+  if(state.settings.localModel) $('localModelSelect').value = state.settings.localModel;
+  
+  renderProjectsList();
+
+  const monaco = await window.monacoReady;
+  state.editorInstance = monaco.editor.create($('editor'), {
+    value: "// Select a project and file to begin",
+    language: "javascript", theme: "vs-dark", automaticLayout: true, minimap: { enabled: false }
+  });
+  state.diffInstance = monaco.editor.createDiffEditor($('diffEditor'), {
+    theme: "vs-dark", automaticLayout: true
+  });
+  
+  state.editorInstance.onDidChangeModelContent(() => {
+    if(state.currentFile && !$('editor').classList.contains('hidden')) {
+      state.currentFile.content = state.editorInstance.getValue();
+      const proj = state.projects.find(p => p.id === state.currentProjectId);
+      if(proj) dbOp('projects', 'put', proj); 
+    }
+  });
+
+  // iPhone PWA smooth focus
+  $('aiInput').addEventListener('focus', e => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth' }), 300));
+}
+
+// Nav Tabs
+document.querySelectorAll('.tab-btn').forEach(b => b.onclick = (e) => {
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active', 'text-slate-200'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+  e.target.classList.add('tab-active', 'text-slate-200');
+  $(e.target.dataset.tab).classList.remove('hidden');
 });
 
-document.getElementById('cancelExport').addEventListener('click', () => {
-  document.getElementById('exportModal').style.display = 'none';
-});
-document.getElementById('closeExportModal').addEventListener('click', () => {
-  document.getElementById('exportModal').style.display = 'none';
-});
+// View Tabs
+$('tabCode').onclick = () => switchToView('editor');
+$('tabDiff').onclick = () => switchToView('diff');
+$('tabGraph').onclick = () => switchToView('graph');
 
-/* ---------- Init ---------- */
-loadSettings();
-loadExperts();
-loadProjects();
-loadChatHistory();
-initializeNewChat();
+$('btnShowGraph').onclick = () => {
+  const proj = state.projects.find(p => p.id === state.currentProjectId);
+  if(!proj) return;
+  switchToView('graph');
+  $('mermaidGraph').removeAttribute('data-processed');
+  $('mermaidGraph').innerHTML = buildProjectGraph(proj);
+  mermaid.run({ nodes: [$('mermaidGraph')] });
+};
 
-document.getElementById('roleSelect').addEventListener('change', () => {
-  const roleId = document.getElementById('roleSelect').value;
-  const expert = experts.find(e => e.id === roleId) || experts[0];
-  updateQuickActions(expert.quickActions);
-});
+// Git History Modal
+$('btnHistory').onclick = async () => {
+  const snaps = await dbOp('snapshots', 'getAll');
+  const projSnaps = snaps.filter(s => s.projectId === state.currentProjectId).sort((a,b) => b.timestamp - a.timestamp);
+  
+  const list = $('historyList');
+  list.innerHTML = '';
+  projSnaps.forEach(s => {
+    const d = new Date(s.timestamp).toLocaleString();
+    const el = document.createElement('div');
+    el.className = 'bg-slate-700 p-2 rounded flex justify-between items-center text-sm';
+    el.innerHTML = `<div><div class="font-bold">${s.label}</div><div class="text-xs text-slate-400">${d}</div></div>
+      <button class="bg-blue-600 px-2 py-1 rounded text-xs hover:bg-blue-500">Restore</button>`;
+    el.querySelector('button').onclick = async () => {
+      const proj = state.projects.find(p => p.id === state.currentProjectId);
+      proj.files = s.files;
+      await dbOp('projects', 'put', proj);
+      renderFileTree();
+      appendChat('System', `⏪ Restored snapshot: ${s.label}`);
+      $('historyModal').classList.add('hidden');
+    };
+    list.appendChild(el);
+  });
+  $('historyModal').classList.remove('hidden');
+};
+
+// Projects
+function renderProjectsList() {
+  const list = $('projectsList');
+  list.innerHTML = '';
+  state.projects.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'flex justify-between items-center bg-slate-50 p-3 rounded border border-slate-200 cursor-pointer hover:bg-slate-100';
+    div.innerHTML = `<div class="font-medium">${p.name} <span class="text-xs text-slate-400">(${p.files.length} files)</span></div>`;
+    div.onclick = () => loadProject(p.id);
+    list.appendChild(div);
+  });
+}
+
+async function loadProject(id) {
+  state.currentProjectId = id;
+  const proj = state.projects.find(p => p.id === id);
+  $('activeProjectBadge').textContent = proj.name;
+  $('activeProjectBadge').classList.remove('hidden');
+  
+  document.querySelector('[data-tab="workspace"]').click();
+  renderFileTree();
+  if(proj.files.length > 0) openFile(proj.files[0]);
+  appendChat('System', `Project **${proj.name}** loaded.`);
+}
+
+$('addProject').onclick = async () => {
+  const name = $('newProjName').value || `Project_${Date.now()}`;
+  const fileInput = $('projectFile').files;
+  if(fileInput.length === 0) return alert("Select files");
+  
+  const files = [];
+  for (let f of fileInput) files.push({ name: f.name, content: await f.text() });
+  
+  const project = { id: crypto.randomUUID(), name, files };
+  state.projects.push(project);
+  await dbOp('projects', 'put', project);
+  await saveSnapshot(project.id, "Initial Import");
+  
+  // Index vectors using Web Worker
+  $('addProject').textContent = "Indexing AST & Vectors...";
+  for (let file of files) {
+    const chunks = chunkText(file.content);
+    for(let c of chunks) {
+      const embedding = await getEmbedding(c);
+      await dbOp('vectors', 'put', { id: crypto.randomUUID(), projectId: project.id, fileName: file.name, content: c, embedding });
+    }
+  }
+  
+  $('addProject').textContent = "Create & Index Project";
+  $('newProjName').value = '';
+  renderProjectsList();
+  loadProject(project.id);
+};
+
+// Settings
+$('saveSettings').onclick = async () => {
+  await dbOp('settings', 'put', { key: 'apiKey', value: $('apiKey').value });
+  await dbOp('settings', 'put', { key: 'localModel', value: $('localModelSelect').value });
+  state.settings.apiKey = $('apiKey').value;
+  state.settings.localModel = $('localModelSelect').value;
+  alert("Settings Saved");
+};
+
+// AI Actions
+$('btnSendAgent').onclick = () => {
+  const text = $('aiInput').value.trim();
+  if(!text) return;
+  $('aiInput').value = '';
+  runAutonomousAgent(text);
+};
+
+$('btnRefactor').onclick = async () => {
+  const sel = state.editorInstance.getModel().getValueInRange(state.editorInstance.getSelection());
+  if(!sel) return alert("Select code in editor first");
+  runAutonomousAgent(`Refactor this code:\n\n${sel}\n\nMake it robust. File context: ${state.currentFile.name}`);
+};
+
+$('btnGenTests').onclick = async () => {
+  if(!state.currentFile) return;
+  runAutonomousAgent(`Generate unit tests for the file ${state.currentFile.name}. Create a new file named ${state.currentFile.name.split('.')[0]}.test.js`);
+};
+
+// CI/CD Generator
+$('btnGenCI').onclick = async () => {
+  const proj = state.projects.find(p => p.id === state.currentProjectId);
+  if(!proj) return;
+  runAutonomousAgent(`Generate a GitHub Actions CI workflow for this project to run tests and linting.
+  Files in project: ${proj.files.map(f=>f.name).join(', ')}
+  Create the file at .github/workflows/ci.yml`);
+};
+
+$('btnAnalyzeAST').onclick = async () => {
+  if(!state.currentFile) return;
+  const sym = extractSymbols(state.currentFile.content);
+  appendChat('AST Engine', `**Analysis for ${state.currentFile.name}**\n\n- Functions: ${sym.functions.join(', ')}\n- Classes: ${sym.classes.join(', ')}\n- Imports: ${sym.imports.join(', ')}\n- Calls: ${sym.calls.join(', ')}\n- Total Returns: ${sym.returns}`);
+};
+
+init();
 </script>
-
 </body>
 </html>
