@@ -1,803 +1,382 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="description" content="Spire AI Dev Assistant - Local First PWA IDE">
-  <title>Spire AI IDE</title>
-  
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlNwaXJlIEFJIERldiBBc3Npc3RhbnQiLAogICJzaG9ydF9uYW1lIjogIlNwaXJlIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwZjE3MmEiLAogICJ0aGVtZV9jb2xvciI6ICIjM2I4MmY2IiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sLCUzQ3N2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJyUzRSUzQ2NpcmNsZSBjeD0nNTAnIGN5PSc1MCcgcj0nNDAnIGZpbGw9JyUyMzNiODJmNicvJTNFJTNDL3N2ZyUzRSIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICAgIH0KICBdCn0=">
-  
-  <!-- Libraries -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
-  <!-- Monaco Editor Loader -->
-  <script>
-    var require = { paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
-  <script>
-    window.monacoReady = new Promise(resolve => {
-      require(['vs/editor/editor.main'], function() { resolve(window.monaco); });
-    });
-  </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a" />
+    <title>Spire AI Assistant</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 
-  <style>
-    :root { --safe-bottom: env(safe-area-inset-bottom, 0px); --safe-top: env(safe-area-inset-top, 0px); }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; height: 100vh; overflow: hidden; display: flex; flex-direction: column; padding-top: var(--safe-top); }
-    .hidden { display: none !important; }
-    .tab-active { background: #1e293b; color: #60a5fa; border-bottom: 2px solid #3b82f6; }
-    
-    /* IDE Layout Layout */
-    .ide-container { display: flex; flex: 1; overflow: hidden; padding-bottom: var(--safe-bottom); }
-    .sidebar { width: 250px; background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; }
-    .editor-area { flex: 1; position: relative; background: #1e1e1e; }
-    .ai-panel { width: 350px; background: #1e293b; border-left: 1px solid #334155; display: flex; flex-direction: column; }
-    
-    /* File Tree & Buttons */
-    .file-item { padding: 4px 8px; font-size: 13px; cursor: pointer; display: flex; align-items: center; color: #cbd5e1; }
-    .file-item:hover, .file-active { background: #334155; color: #fff; }
-    .action-btn { background: #1e293b; border: 1px solid #334155; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; color: #94a3b8; transition: all 0.2s; }
-    .action-btn:hover { background: #334155; color: #f8fafc; }
-    
-    /* Monaco Overrides */
-    .monaco-editor { padding-top: 8px; }
-    
-    /* Chat & Action UI */
-    .chat-msg { padding: 10px; margin: 8px; border-radius: 6px; font-size: 13px; line-height: 1.5; }
-    .msg-user { background: #3b82f6; color: white; align-self: flex-end; }
-    .msg-ai { background: #334155; color: #f8fafc; align-self: flex-start; border: 1px solid #475569; }
-    .msg-ai pre { background: #0f172a; padding: 8px; border-radius: 4px; overflow-x: auto; margin-top: 4px; }
-    
-    /* Input - iPhone Optimized */
-    #aiInput { min-height: 60px; max-height: 200px; overflow-y: auto; scroll-behavior: smooth; }
-    
-    /* Scrollbars */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #1e293b; }
-    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-    
-    /* Mermaid & Modals */
-    .mermaid { background: #f8fafc; padding: 20px; border-radius: 8px; color: #0f172a; }
-    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 50; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
-    .modal-content { background: #1e293b; border: 1px solid #334155; padding: 20px; border-radius: 8px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
-  </style>
+    <style>
+        :root { --safe-bottom: env(safe-area-inset-bottom, 0px); }
+        body { background: #0f172a; color: #f8fafc; height: 100dvh; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
+        .panel { position: absolute; inset: 0; background: #0f172a; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 10; display: flex; flex-direction: column; }
+        .hidden-right { transform: translateX(100%); }
+        .hidden-left { transform: translateX(-100%); }
+        .nav-active { color: #3b82f6; border-top: 2px solid #3b82f6; }
+        .monaco-editor { padding-top: 40px; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+
+        /* Animations */
+        @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .animate-pulse-soft { animation: pulse-soft 2s infinite; }
+    </style>
 </head>
 <body>
 
-<!-- HEADER -->
-<header class="bg-slate-900 border-b border-slate-700 h-[50px] flex justify-between items-center px-4 flex-shrink-0">
-  <div class="flex items-center space-x-2">
-    <div class="w-6 h-6 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow">S</div>
-    <h1 class="font-bold text-slate-100 tracking-wide text-sm hidden sm:block">Spire IDE</h1>
-    <span id="activeProjectBadge" class="ml-2 px-2 py-0.5 bg-slate-800 text-blue-400 text-xs rounded hidden">Project</span>
-  </div>
-  <nav class="flex space-x-1 text-xs font-medium">
-    <button class="px-3 py-1.5 rounded-t tab-btn text-slate-400 hover:text-slate-200" data-tab="settings">Settings</button>
-    <button class="px-3 py-1.5 rounded-t tab-btn text-slate-400 hover:text-slate-200" data-tab="projects">Projects</button>
-    <button class="px-3 py-1.5 rounded-t tab-btn tab-active" data-tab="workspace">Workspace</button>
-  </nav>
+<header class="h-14 border-b border-slate-800 flex items-center px-4 justify-between bg-slate-900/50 backdrop-blur-md z-50">
+    <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <span class="font-bold text-white italic">S</span>
+        </div>
+        <h1 id="projectTitle" class="text-sm font-bold tracking-tight text-slate-200">Spire Assistant</h1>
+    </div>
+    <div class="flex items-center gap-4">
+        <button onclick="toggleHelp()" class="w-6 h-6 rounded-full border border-slate-700 text-slate-400 text-xs flex items-center justify-center italic">i</button>
+        <button onclick="switchTab('settings')" class="text-slate-400">⚙️</button>
+    </div>
 </header>
 
-<!-- SETTINGS TAB -->
-<section id="settings" class="tab-content hidden p-6 overflow-auto h-full text-slate-800 bg-slate-100">
-  <div class="max-w-3xl mx-auto space-y-4">
-    <div class="bg-white p-4 rounded-lg shadow border border-slate-200">
-      <h2 class="font-bold mb-3 flex items-center text-sm">🤖 LLM Engine Routing</h2>
-      <div class="space-y-3">
-        <div>
-          <label class="block text-xs font-medium text-slate-600">Groq API Key (Cloud Fast)</label>
-          <input type="password" id="apiKey" class="border p-2 w-full rounded text-sm bg-slate-50" placeholder="gsk_...">
+<main class="relative flex-1 overflow-hidden">
+    
+    <section id="tab-projects" class="panel p-4 space-y-4 overflow-y-auto pb-24">
+        <div class="flex justify-between items-end mb-2">
+            <h2 class="text-2xl font-bold">Projects</h2>
+            <span class="text-[10px] text-slate-500 uppercase tracking-widest">Enrich & Manage</span>
         </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-600">Local AI Engine (WebGPU Web Worker)</label>
-          <select id="localModelSelect" class="border p-2 w-full rounded text-sm bg-slate-50">
-            <option value="none">Disabled (API Only)</option>
-            <option value="Xenova/TinyLlama-1.1B-Chat-v1.0">TinyLlama 1.1B (Fastest)</option>
-            <option value="Xenova/phi-2">Phi-2 (High Memory, Powerful)</option>
-          </select>
-          <p class="text-[10px] text-slate-500 mt-1">If enabled, small prompts run locally via Web Workers (doesn't freeze UI).</p>
+
+        <div class="glass p-6 rounded-2xl border-dashed border-2 border-slate-700 text-center space-y-3">
+            <input type="file" id="zipUpload" class="hidden" accept=".zip">
+            <div class="text-3xl">📦</div>
+            <p class="text-xs text-slate-400">Upload a project ZIP to begin AI enrichment</p>
+            <button onclick="document.getElementById('zipUpload').click()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all">Import ZIP</button>
         </div>
-        <button id="saveSettings" class="w-full bg-blue-600 text-white py-2 rounded text-sm hover:bg-blue-700">Save AI Config</button>
-      </div>
-    </div>
-  </div>
-</section>
 
-<!-- PROJECTS TAB -->
-<section id="projects" class="tab-content hidden p-6 overflow-auto h-full text-slate-800 bg-slate-100">
-  <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div class="bg-white p-4 rounded-lg shadow border border-slate-200">
-      <h2 class="font-bold text-slate-700 mb-3 text-sm">Create / Import Project</h2>
-      <div class="space-y-3">
-        <input type="text" id="newProjName" class="border p-2 w-full rounded text-sm bg-slate-50" placeholder="Project Name">
-        <label class="block text-xs font-medium text-slate-500">Upload Files</label>
-        <input type="file" id="projectFile" multiple class="border p-1 w-full rounded text-xs">
-        <button id="addProject" class="w-full bg-slate-800 text-white px-4 py-2 rounded hover:bg-slate-900 text-sm font-medium">Create & Index Project</button>
-      </div>
-    </div>
-    <div>
-      <h3 class="text-sm font-bold text-slate-400 uppercase mb-2">My Workspaces</h3>
-      <div id="projectsList" class="space-y-2"></div>
-    </div>
-  </div>
-</section>
+        <div id="projectList" class="space-y-3">
+            </div>
+    </section>
 
-<!-- WORKSPACE TAB (THE IDE) -->
-<section id="workspace" class="tab-content ide-container w-full">
-  
-  <!-- Left: File Tree -->
-  <div class="sidebar flex flex-col hidden sm:flex">
-    <div class="p-2 border-b border-slate-700 flex justify-between items-center bg-slate-800">
-      <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Explorer</span>
-      <div class="flex gap-1">
-        <button id="btnShowGraph" class="action-btn" title="Architecture Graph">🕸️</button>
-        <button id="btnHistory" class="action-btn" title="Git History">🕒</button>
-      </div>
-    </div>
-    <div id="fileTree" class="flex-1 overflow-y-auto py-2"></div>
-  </div>
+    <section id="tab-editor" class="panel hidden-right">
+        <div class="absolute top-0 left-0 right-0 h-10 bg-slate-900/80 border-b border-slate-800 flex items-center px-4 justify-between z-20">
+            <span id="activeFileName" class="text-[10px] font-mono text-slate-400 truncate max-w-[60%]">No file selected</span>
+            <div class="flex gap-2">
+                <button onclick="runPreview()" class="text-[10px] font-bold text-green-400 bg-green-400/10 px-2 py-1 rounded border border-green-400/20">▶ RUN</button>
+                <button onclick="downloadProjectZip()" class="text-[10px] font-bold text-blue-400">EXPORT</button>
+            </div>
+        </div>
+        <div id="editorContainer" class="flex-1"></div>
+        
+        <div class="h-12 bg-slate-800/90 border-t border-slate-700 flex items-center px-2 gap-2 overflow-x-auto whitespace-nowrap">
+            <button onclick="insertCode('\t')" class="bg-slate-700 px-3 py-1 rounded text-xs font-bold text-yellow-500">TAB</button>
+            <button onclick="insertCode('{')" class="bg-slate-700 px-3 py-1 rounded text-xs font-mono text-blue-400">{</button>
+            <button onclick="insertCode('}')" class="bg-slate-700 px-3 py-1 rounded text-xs font-mono text-blue-400">}</button>
+            <button onclick="insertCode('(')" class="bg-slate-700 px-3 py-1 rounded text-xs font-mono text-blue-400">(</button>
+            <button onclick="insertCode(')')" class="bg-slate-700 px-3 py-1 rounded text-xs font-mono text-blue-400">)</button>
+            <button onclick="insertCode(';')" class="bg-slate-700 px-3 py-1 rounded text-xs font-mono text-blue-400">;</button>
+            <button onclick="insertCode(' => ')" class="bg-slate-700 px-3 py-1 rounded text-xs font-mono text-green-400">=&gt;</button>
+        </div>
+    </section>
 
-  <!-- Center: Editors & Views -->
-  <div class="editor-area">
-    <!-- View Toggles -->
-    <div class="absolute top-0 left-0 right-0 h-8 bg-slate-800 border-b border-slate-700 flex items-center px-2 z-10 space-x-1">
-      <button id="tabCode" class="text-xs px-3 py-1 rounded bg-slate-700 text-white">Code</button>
-      <button id="tabDiff" class="text-xs px-3 py-1 rounded text-slate-400 hover:text-white hidden">Review Diff</button>
-      <button id="tabGraph" class="text-xs px-3 py-1 rounded text-slate-400 hover:text-white hidden">Architecture</button>
-    </div>
-    
-    <!-- Containers -->
-    <div id="editor" class="absolute top-8 bottom-0 left-0 right-0"></div>
-    <div id="diffEditor" class="absolute top-8 bottom-0 left-0 right-0 hidden"></div>
-    <div id="graphView" class="absolute top-8 bottom-0 left-0 right-0 hidden bg-white overflow-auto p-4 flex justify-center items-start">
-      <div id="mermaidGraph" class="mermaid"></div>
-    </div>
-    
-    <!-- Diff Action Bar -->
-    <div id="diffActionBar" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-800 border border-slate-600 rounded-lg p-2 shadow-xl hidden z-20 flex gap-2">
-      <button id="btnAcceptDiff" class="bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700">Accept Changes</button>
-      <button id="btnRejectDiff" class="bg-red-600 text-white px-4 py-1.5 rounded text-sm hover:bg-red-700">Reject</button>
-    </div>
-  </div>
+    <section id="tab-settings" class="panel hidden-right p-6 overflow-y-auto pb-24">
+        <h2 class="text-xl font-bold mb-6">Settings</h2>
+        <div class="space-y-6">
+            <div class="space-y-2">
+                <label class="text-[10px] font-bold text-slate-500 uppercase">Groq API Key</label>
+                <input type="password" id="apiKey" placeholder="gsk_..." class="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-sm focus:border-blue-500 outline-none">
+                <button onclick="saveSettings()" class="w-full bg-slate-700 py-2 rounded-lg text-xs font-bold">Save Key</button>
+            </div>
+            
+            <hr class="border-slate-800">
+            
+            <div class="flex justify-between items-center">
+                <label class="text-[10px] font-bold text-slate-500 uppercase">Expert Personas</label>
+                <button onclick="addExpert()" class="text-xs text-blue-400">+ Add</button>
+            </div>
+            <div id="expertList" class="space-y-3"></div>
+        </div>
+    </section>
 
-  <!-- Right: AI Copilot -->
-  <div class="ai-panel">
-    <div class="p-2 text-xs font-bold text-slate-400 border-b border-slate-700 uppercase tracking-wider bg-slate-800 flex justify-between items-center">
-      <span>AI Copilot</span>
-      <button class="sm:hidden action-btn" onclick="document.querySelector('.sidebar').classList.toggle('hidden')">📁 Files</button>
-    </div>
-    
-    <!-- Quick Actions -->
-    <div class="p-2 border-b border-slate-700 grid grid-cols-2 gap-1 bg-slate-800/50">
-      <button id="btnRefactor" class="action-btn">🔧 Refactor Sel.</button>
-      <button id="btnGenTests" class="action-btn text-green-400">🧪 Gen Tests</button>
-      <button id="btnGenCI" class="action-btn text-blue-400">⚙️ Gen CI/CD</button>
-      <button id="btnAnalyzeAST" class="action-btn text-purple-400">🔍 AST Analysis</button>
+    <div id="previewOverlay" class="fixed inset-0 bg-white z-[100] hidden flex flex-col">
+        <div class="h-12 bg-slate-900 flex items-center justify-between px-4 border-b border-slate-700">
+            <span class="text-xs font-bold text-slate-300">LIVE PREVIEW</span>
+            <button onclick="closePreview()" class="text-white text-2xl">&times;</button>
+        </div>
+        <iframe id="previewFrame" class="flex-1 w-full border-none bg-white"></iframe>
     </div>
 
-    <!-- Chat History -->
-    <div id="chatHistory" class="flex-1 overflow-y-auto flex flex-col p-2 space-y-2">
-      <div class="text-center text-slate-500 text-xs mt-4">Initialize a project to wake up the agent.</div>
+    <div id="progressOverlay" class="fixed inset-0 z-[110] bg-slate-950/90 backdrop-blur-md hidden flex items-center justify-center p-8">
+        <div class="w-full max-w-xs space-y-6 text-center">
+            <div class="relative w-20 h-20 mx-auto">
+                <div class="absolute inset-0 bg-blue-500 rounded-2xl animate-spin opacity-20"></div>
+                <div class="absolute inset-2 bg-blue-600 rounded-xl flex items-center justify-center text-3xl">🧠</div>
+            </div>
+            <div>
+                <h3 id="progressTitle" class="font-bold text-lg">Thinking...</h3>
+                <p id="progressSub" class="text-xs text-slate-500 mt-1">Autonomous Agent Active</p>
+            </div>
+            <div id="stepList" class="space-y-3 text-left"></div>
+        </div>
     </div>
+</main>
 
-    <!-- Input Area -->
-    <div class="p-2 border-t border-slate-700 bg-slate-800">
-      <div id="agentStatus" class="text-[10px] text-blue-400 mb-1 h-3 truncate"></div>
-      <textarea id="aiInput" class="w-full bg-slate-900 text-sm text-slate-100 p-2 rounded border border-slate-600 resize-none focus:border-blue-500 outline-none" placeholder="Feature request... (e.g. 'Add a caching layer')"></textarea>
-      <button id="btnSendAgent" class="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white py-1.5 rounded text-sm font-medium transition shadow">Run Autonomous Agent</button>
-    </div>
-  </div>
-</section>
+<nav class="fixed bottom-0 left-0 right-0 h-16 bg-slate-900/80 backdrop-blur-lg border-t border-slate-800 flex items-center justify-around px-4 pb-[var(--safe-bottom)] z-50">
+    <button onclick="switchTab('projects')" class="flex flex-col items-center gap-1 text-slate-500 nav-btn" id="nav-projects">
+        <span class="text-xl">📂</span>
+        <span class="text-[9px] font-bold">PROJECTS</span>
+    </button>
+    <button onclick="switchTab('editor')" class="flex flex-col items-center gap-1 text-slate-500 nav-btn" id="nav-editor">
+        <span class="text-xl">📝</span>
+        <span class="text-[9px] font-bold">EDITOR</span>
+    </button>
+    <button onclick="switchTab('settings')" class="flex flex-col items-center gap-1 text-slate-500 nav-btn" id="nav-settings">
+        <span class="text-xl">⚙️</span>
+        <span class="text-[9px] font-bold">SETTINGS</span>
+    </button>
+</nav>
 
-<!-- History Modal -->
-<div id="historyModal" class="modal hidden">
-  <div class="modal-content text-slate-100 flex flex-col">
-    <div class="flex justify-between items-center border-b border-slate-600 pb-2 mb-2">
-      <h3 class="font-bold">Project Snapshots (Mini-Git)</h3>
-      <button onclick="document.getElementById('historyModal').classList.add('hidden')" class="text-slate-400 hover:text-white">&times;</button>
+<div id="helpModal" class="fixed inset-0 z-[120] hidden flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
+    <div class="bg-slate-800 border border-slate-700 w-full rounded-3xl p-6 space-y-4 max-h-[80vh] overflow-y-auto shadow-2xl">
+        <h2 class="text-xl font-bold text-blue-400">Spire User Manual</h2>
+        <div class="space-y-4 text-sm text-slate-300">
+            <p><strong>1. Import:</strong> Upload a ZIP in Projects. Spire extracts everything locally.</p>
+            <p><strong>2. Enrichment:</strong> Tap a project card to run AI Inspection. It generates an <code>app.json</code> and a summary.</p>
+            <p><strong>3. Smart Code:</strong> Edit files in the Editor. Use the Smart Toolbar for quick symbols on mobile.</p>
+            <p><strong>4. Preview:</strong> Run HTML/CSS/JS projects instantly in the built-in sandbox.</p>
+        </div>
+        <button onclick="toggleHelp()" class="w-full bg-blue-600 py-3 rounded-2xl font-bold mt-4">Got it!</button>
     </div>
-    <div id="historyList" class="space-y-2 flex-1 overflow-y-auto max-h-64"></div>
-  </div>
 </div>
 
-<script type="module">
-// ==========================================
-// 1. PWA SERVICE WORKER
-// ==========================================
-if ('serviceWorker' in navigator) {
-  const swCode = `
-    const CACHE = 'spire-ide-v3';
-    self.addEventListener('install', e => self.skipWaiting());
-    self.addEventListener('activate', e => e.waitUntil(clients.claim()));
-    self.addEventListener('fetch', e => {
-      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(()=>r)));
-    });
-  `;
-  const blob = new Blob([swCode], { type: 'application/javascript' });
-  navigator.serviceWorker.register(URL.createObjectURL(blob));
-}
-
-let state = {
-  projects: [], currentProjectId: null, settings: {},
-  editorInstance: null, diffInstance: null, currentFile: null, pendingChanges: null
-};
-
-const $ = id => document.getElementById(id);
-mermaid.initialize({ startOnLoad: false, theme: 'default' });
-
-// ==========================================
-// 2. INDEXED DB (Projects, Vectors, Snapshots)
-// ==========================================
-const openDB = () => new Promise((resolve, reject) => {
-  const req = indexedDB.open('spire-ide-db', 4);
-  req.onupgradeneeded = e => {
-    const db = e.target.result;
-    if (!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' });
-    if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', { keyPath: 'key' });
-    if (!db.objectStoreNames.contains('vectors')) {
-      const vs = db.createObjectStore('vectors', { keyPath: 'id' });
-      vs.createIndex('projectId', 'projectId');
-    }
-    if (!db.objectStoreNames.contains('snapshots')) {
-      const sp = db.createObjectStore('snapshots', { keyPath: 'id' });
-      sp.createIndex('projectId', 'projectId');
-    }
-  };
-  req.onsuccess = () => resolve(req.result);
-  req.onerror = reject;
-});
-
-const dbOp = async (store, op, data=null) => {
-  const db = await openDB();
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, op === 'getAll' || op === 'get' ? 'readonly' : 'readwrite');
-    const s = tx.objectStore(store);
-    let req;
-    if (op === 'put') req = s.put(data);
-    else if (op === 'delete') req = s.delete(data);
-    else if (op === 'get') req = s.get(data);
-    else req = s.getAll();
-    req.onsuccess = () => res(req.result);
-    req.onerror = rej;
-  });
-};
-
-// ==========================================
-// 3. INLINE WEB WORKER (Embeddings & LLM)
-// ==========================================
-// We use a blob to create a worker dynamically without needing an external file
-const workerCode = `
-  import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1/dist/transformers.min.js';
-  env.allowLocalModels = false; // Force CDN fetching for zero-install
-  let embedder = null;
-  let generator = null;
-
-  self.onmessage = async (e) => {
-    const { type, id, text, model } = e.data;
-    try {
-      if (type === 'embed') {
-        if (!embedder) embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-        const out = await embedder(text, { pooling: 'mean', normalize: true });
-        self.postMessage({ id, type: 'embed_done', data: Array.from(out.data) });
-      } else if (type === 'generate') {
-        if (!generator || generator.model !== model) {
-           generator = await pipeline('text-generation', model, { device: 'webgpu' });
-           generator.model = model;
-        }
-        const out = await generator(text, { max_new_tokens: 300 });
-        self.postMessage({ id, type: 'generate_done', data: out[0].generated_text });
-      }
-    } catch(err) {
-      self.postMessage({ id, type: 'error', error: err.message });
-    }
-  };
-`;
-const aiWorker = new Worker(URL.createObjectURL(new Blob([workerCode], {type: 'application/javascript'})), {type: 'module'});
-let workerJobCounter = 0;
-const workerJobs = new Map();
-
-aiWorker.onmessage = (e) => {
-  const { id, type, data, error } = e.data;
-  if (workerJobs.has(id)) {
-    if (type === 'error') workerJobs.get(id).reject(new Error(error));
-    else workerJobs.get(id).resolve(data);
-    workerJobs.delete(id);
-  }
-};
-
-const runWorkerJob = (msg) => new Promise((resolve, reject) => {
-  const id = ++workerJobCounter;
-  workerJobs.set(id, { resolve, reject });
-  aiWorker.postMessage({ id, ...msg });
-});
-
-async function getEmbedding(text) {
-  return await runWorkerJob({ type: 'embed', text: text.substring(0, 500) });
-}
-
-// Math Utility for Embeddings
-function cosineSim(a, b) {
-  let dot=0, magA=0, magB=0;
-  for(let i=0;i<a.length;i++){ dot+=a[i]*b[i]; magA+=a[i]*a[i]; magB+=b[i]*b[i]; }
-  return dot / (Math.sqrt(magA)*Math.sqrt(magB));
-}
-
-// Chunking Logic (Overlapping)
-function chunkText(text, size=500, overlap=50) {
-  const chunks = [];
-  if (!text) return chunks;
-  for(let i=0; i<text.length; i += size - overlap){
-    chunks.push(text.slice(i, i+size));
-    if (i + size >= text.length) break;
-  }
-  return chunks;
-}
-
-// ==========================================
-// 4. LLM ROUTER (Hybrid)
-// ==========================================
-async function smartLLM(prompt, forceAPI = false) {
-  const mode = state.settings.localModel || "none";
-  
-  // Try WebGPU Worker if enabled and prompt is short
-  if (mode !== "none" && !forceAPI && prompt.length < 1500) {
-    $('agentStatus').textContent = "🤖 Local WebGPU Thinking...";
-    try {
-      const res = await runWorkerJob({ type: 'generate', text: prompt, model: mode });
-      $('agentStatus').textContent = "";
-      return res;
-    } catch(e) {
-      console.warn("Local Worker failed, falling back to API", e);
-    }
-  }
-
-  // Fallback / Main API
-  if (!state.settings.apiKey) throw new Error("No API Key. Set it in settings.");
-  $('agentStatus').textContent = "☁️ API Processing...";
-  const res = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-    model: 'llama3-8b-8192',
-    messages: [
-      { role: 'system', content: 'You are an elite AI system architect and coder. Output JSON only if asked.' }, 
-      { role: 'user', content: prompt }
-    ],
-    temperature: 0.2
-  }, { headers: { 'Authorization': `Bearer ${state.settings.apiKey}` } });
-  
-  $('agentStatus').textContent = "";
-  return res.data.choices[0].message.content;
-}
-
-// ==========================================
-// 5. AST & INTELLIGENCE ENGINE
-// ==========================================
-function parseAST(code) {
-  try { return Babel.packages.parser.parse(code, { sourceType: "module", plugins: ["jsx", "typescript"] }); } 
-  catch(e) { return null; }
-}
-
-// Expanded AST Walker
-function walkAST(node, visitor) {
-  if (!node) return;
-  if (Array.isArray(node)) { node.forEach(n => walkAST(n, visitor)); return; }
-  if (visitor[node.type]) visitor[node.type](node);
-  for (const key in node) {
-    if (typeof node[key] === 'object' && key !== 'loc') walkAST(node[key], visitor);
-  }
-}
-
-function extractSymbols(code) {
-  const ast = parseAST(code);
-  const symbols = { functions: [], classes: [], imports: [], exports: [], calls: [], returns: 0 };
-  if (!ast) return symbols;
-
-  walkAST(ast, {
-    FunctionDeclaration: n => { if(n.id) symbols.functions.push(n.id.name); },
-    VariableDeclarator: n => { if(n.init?.type==='ArrowFunctionExpression' && n.id) symbols.functions.push(n.id.name); },
-    ClassDeclaration: n => { if(n.id) symbols.classes.push(n.id.name); },
-    ImportDeclaration: n => { if(n.source) symbols.imports.push(n.source.value); },
-    ExportNamedDeclaration: n => { if(n.declaration?.id) symbols.exports.push(n.declaration.id.name); },
-    CallExpression: n => { if(n.callee?.name) symbols.calls.push(n.callee.name); },
-    ReturnStatement: () => { symbols.returns++; }
-  });
-  return symbols;
-}
-
-function buildProjectGraph(project) {
-  const edges = [];
-  project.files.forEach(f => {
-    const sym = extractSymbols(f.content);
-    sym.imports.forEach(imp => {
-      const cleanImp = imp.replace(/['"\.\/]/g, '');
-      const cleanFile = f.name.replace(/['"\.\/]/g, '');
-      edges.push(`${cleanFile} --> ${cleanImp}`);
-    });
-  });
-  return edges.length === 0 ? "graph TD\n  Project --> No_Dependencies" : `graph TD\n${edges.join('\n')}`;
-}
-
-// ==========================================
-// 6. MINI-GIT & FILE SYSTEM
-// ==========================================
-function getLanguageFromFilename(filename) {
-  if(filename.endsWith('.html')) return 'html';
-  if(filename.endsWith('.css')) return 'css';
-  if(filename.endsWith('.json')) return 'json';
-  if(filename.endsWith('.ts') || filename.endsWith('.tsx')) return 'typescript';
-  if(filename.endsWith('.md')) return 'markdown';
-  if(filename.endsWith('.yml') || filename.endsWith('.yaml')) return 'yaml';
-  return 'javascript';
-}
-
-async function saveSnapshot(projectId, label = "Manual Snapshot") {
-  const proj = state.projects.find(p => p.id === projectId);
-  if(!proj) return;
-  // Deep clone project files
-  const snapshot = {
-    id: crypto.randomUUID(),
-    projectId,
-    label,
-    timestamp: Date.now(),
-    files: JSON.parse(JSON.stringify(proj.files))
-  };
-  await dbOp('snapshots', 'put', snapshot);
-}
-
-// ==========================================
-// 7. AUTONOMOUS AGENT LOGIC
-// ==========================================
-async function runAutonomousAgent(request) {
-  const proj = state.projects.find(p => p.id === state.currentProjectId);
-  if(!proj) return alert("Select a project");
-  
-  appendChat('User', request);
-  
-  // 1. Semantic Search
-  $('agentStatus').textContent = "🔍 Vector Search in Worker...";
-  const vec = await getEmbedding(request);
-  const allVectors = await dbOp('vectors', 'getAll');
-  const projVecs = allVectors.filter(v => v.projectId === proj.id);
-  projVecs.forEach(v => v.score = cosineSim(vec, v.embedding));
-  const hits = projVecs.sort((a,b) => b.score - a.score).slice(0, 4);
-  
-  // 2. Build AST Context
-  $('agentStatus').textContent = "🧠 Analyzing AST...";
-  let context = hits.map(h => {
-    const f = proj.files.find(file => file.name === h.fileName);
-    if (!f) return '';
-    const sym = extractSymbols(f.content);
-    return `FILE: ${f.name}\nFUNCTIONS: ${sym.functions.join(',')}\nIMPORTS: ${sym.imports.join(',')}\nCONTENT:\n${f.content}`;
-  }).join('\n\n---\n\n');
-  
-  if(!context) context = proj.files.slice(0,3).map(f => `FILE: ${f.name}\n${f.content}`).join('\n');
-
-  const prompt = `
-You are an autonomous AI Copilot. 
-Context:
-${context}
-
-Task: ${request}
-
-Plan the solution, output code changes safely.
-Return ONLY valid JSON in this exact format:
-{
-  "explanation": "Brief reasoning",
-  "changes": [
-    { "file": "existingOrNewFilename.js", "newContent": "entire updated file code here" }
-  ]
-}
-  `;
-
-  try {
-    const rawRes = await smartLLM(prompt, true);
-    
-    let jsonMatch = rawRes.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON found in response");
-    const plan = JSON.parse(jsonMatch[0]);
-    
-    appendChat('AI', `**Plan:** ${plan.explanation}\n\nGenerated ${plan.changes.length} file changes. Review diffs to accept.`);
-    state.pendingChanges = plan.changes;
-    
-    if(plan.changes.length > 0) {
-      previewDiff(plan.changes[0].file, plan.changes[0].newContent);
-    }
-  } catch(e) {
-    appendChat('System Error', `Failed: ${e.message}`);
-  }
-}
-
-// ==========================================
-// 8. IDE & UI WORKFLOW
-// ==========================================
-function appendChat(role, text) {
-  const div = document.createElement('div');
-  div.className = `chat-msg ${role==='User'?'msg-user':'msg-ai'}`;
-  const html = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-  div.innerHTML = `<div class="font-bold text-[10px] uppercase mb-1 opacity-75">${role}</div>${html}`;
-  $('chatHistory').appendChild(div);
-  $('chatHistory').scrollTop = $('chatHistory').scrollHeight;
-}
-
-function renderFileTree() {
-  const proj = state.projects.find(p => p.id === state.currentProjectId);
-  const tree = $('fileTree');
-  tree.innerHTML = '';
-  if(!proj) return;
-  
-  proj.files.forEach(f => {
-    const el = document.createElement('div');
-    el.className = `file-item ${state.currentFile?.name === f.name ? 'file-active' : ''}`;
-    el.innerHTML = `📄 ${f.name}`;
-    el.onclick = () => openFile(f);
-    tree.appendChild(el);
-  });
-}
-
-function openFile(file) {
-  state.currentFile = file;
-  renderFileTree();
-  switchToView('editor');
-  
-  window.monacoReady.then(monaco => {
-    const lang = getLanguageFromFilename(file.name);
-    monaco.editor.setModelLanguage(state.editorInstance.getModel(), lang);
-    state.editorInstance.setValue(file.content);
-  });
-}
-
-function switchToView(view) {
-  ['editor', 'diffEditor', 'graphView', 'diffActionBar'].forEach(id => $(id).classList.add('hidden'));
-  ['tabCode', 'tabDiff', 'tabGraph'].forEach(id => $(id).classList.remove('text-white', 'bg-slate-700'));
-  
-  if (view === 'editor') {
-    $('editor').classList.remove('hidden');
-    $('tabCode').classList.add('text-white', 'bg-slate-700');
-  } else if (view === 'diff') {
-    $('diffEditor').classList.remove('hidden');
-    $('tabDiff').classList.remove('hidden', 'text-slate-400');
-    $('tabDiff').classList.add('text-white', 'bg-slate-700');
-    $('diffActionBar').classList.remove('hidden');
-  } else if (view === 'graph') {
-    $('graphView').classList.remove('hidden');
-    $('tabGraph').classList.remove('hidden', 'text-slate-400');
-    $('tabGraph').classList.add('text-white', 'bg-slate-700');
-  }
-}
-
-function previewDiff(filename, newContent) {
-  const proj = state.projects.find(p => p.id === state.currentProjectId);
-  const existingFile = proj.files.find(f => f.name === filename);
-  const originalContent = existingFile ? existingFile.content : "// New File\n";
-  
-  switchToView('diff');
-  
-  window.monacoReady.then(monaco => {
-    const lang = getLanguageFromFilename(filename);
-    const origModel = monaco.editor.createModel(originalContent, lang);
-    const modModel = monaco.editor.createModel(newContent, lang);
-    state.diffInstance.setModel({ original: origModel, modified: modModel });
-  });
-}
-
-// Diff Actions (Triggers Snapshot)
-$('btnAcceptDiff').onclick = async () => {
-  if(!state.pendingChanges) return;
-  
-  // Create snapshot BEFORE applying changes
-  await saveSnapshot(state.currentProjectId, "Before AI Changes");
-  
-  const proj = state.projects.find(p => p.id === state.currentProjectId);
-  for (const c of state.pendingChanges) {
-    const f = proj.files.find(file => file.name === c.file);
-    if(f) f.content = c.newContent;
-    else proj.files.push({ name: c.file, content: c.newContent });
-  }
-  
-  await dbOp('projects', 'put', proj);
-  state.pendingChanges = null;
-  
-  appendChat('System', '✅ Changes Applied & Snapshot Saved');
-  renderFileTree();
-  if (state.currentFile) openFile(state.currentFile);
-  else switchToView('editor');
-};
-
-$('btnRejectDiff').onclick = () => {
-  state.pendingChanges = null;
-  appendChat('System', '❌ Changes Rejected');
-  switchToView('editor');
-};
-
-// ==========================================
-// 9. INITIALIZATION & EVENTS
-// ==========================================
-async function init() {
-  const rawProjects = await dbOp('projects', 'getAll');
-  state.projects = rawProjects || [];
-  
-  const sets = await dbOp('settings', 'getAll');
-  sets.forEach(s => state.settings[s.key] = s.value);
-  if(state.settings.apiKey) $('apiKey').value = state.settings.apiKey;
-  if(state.settings.localModel) $('localModelSelect').value = state.settings.localModel;
-  
-  renderProjectsList();
-
-  const monaco = await window.monacoReady;
-  state.editorInstance = monaco.editor.create($('editor'), {
-    value: "// Select a project and file to begin",
-    language: "javascript", theme: "vs-dark", automaticLayout: true, minimap: { enabled: false }
-  });
-  state.diffInstance = monaco.editor.createDiffEditor($('diffEditor'), {
-    theme: "vs-dark", automaticLayout: true
-  });
-  
-  state.editorInstance.onDidChangeModelContent(() => {
-    if(state.currentFile && !$('editor').classList.contains('hidden')) {
-      state.currentFile.content = state.editorInstance.getValue();
-      const proj = state.projects.find(p => p.id === state.currentProjectId);
-      if(proj) dbOp('projects', 'put', proj); 
-    }
-  });
-
-  // iPhone PWA smooth focus
-  $('aiInput').addEventListener('focus', e => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth' }), 300));
-}
-
-// Nav Tabs
-document.querySelectorAll('.tab-btn').forEach(b => b.onclick = (e) => {
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active', 'text-slate-200'));
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-  e.target.classList.add('tab-active', 'text-slate-200');
-  $(e.target.dataset.tab).classList.remove('hidden');
-});
-
-// View Tabs
-$('tabCode').onclick = () => switchToView('editor');
-$('tabDiff').onclick = () => switchToView('diff');
-$('tabGraph').onclick = () => switchToView('graph');
-
-$('btnShowGraph').onclick = () => {
-  const proj = state.projects.find(p => p.id === state.currentProjectId);
-  if(!proj) return;
-  switchToView('graph');
-  $('mermaidGraph').removeAttribute('data-processed');
-  $('mermaidGraph').innerHTML = buildProjectGraph(proj);
-  mermaid.run({ nodes: [$('mermaidGraph')] });
-};
-
-// Git History Modal
-$('btnHistory').onclick = async () => {
-  const snaps = await dbOp('snapshots', 'getAll');
-  const projSnaps = snaps.filter(s => s.projectId === state.currentProjectId).sort((a,b) => b.timestamp - a.timestamp);
-  
-  const list = $('historyList');
-  list.innerHTML = '';
-  projSnaps.forEach(s => {
-    const d = new Date(s.timestamp).toLocaleString();
-    const el = document.createElement('div');
-    el.className = 'bg-slate-700 p-2 rounded flex justify-between items-center text-sm';
-    el.innerHTML = `<div><div class="font-bold">${s.label}</div><div class="text-xs text-slate-400">${d}</div></div>
-      <button class="bg-blue-600 px-2 py-1 rounded text-xs hover:bg-blue-500">Restore</button>`;
-    el.querySelector('button').onclick = async () => {
-      const proj = state.projects.find(p => p.id === state.currentProjectId);
-      proj.files = s.files;
-      await dbOp('projects', 'put', proj);
-      renderFileTree();
-      appendChat('System', `⏪ Restored snapshot: ${s.label}`);
-      $('historyModal').classList.add('hidden');
+<script>
+    // --- STATE MANAGEMENT ---
+    let state = {
+        projects: JSON.parse(localStorage.getItem('spire_projects')) || [],
+        experts: JSON.parse(localStorage.getItem('spire_experts')) || [],
+        apiKey: localStorage.getItem('spire_apiKey') || '',
+        activeTab: 'projects',
+        editor: null,
+        currentFile: null
     };
-    list.appendChild(el);
-  });
-  $('historyModal').classList.remove('hidden');
-};
 
-// Projects
-function renderProjectsList() {
-  const list = $('projectsList');
-  list.innerHTML = '';
-  state.projects.forEach(p => {
-    const div = document.createElement('div');
-    div.className = 'flex justify-between items-center bg-slate-50 p-3 rounded border border-slate-200 cursor-pointer hover:bg-slate-100';
-    div.innerHTML = `<div class="font-medium">${p.name} <span class="text-xs text-slate-400">(${p.files.length} files)</span></div>`;
-    div.onclick = () => loadProject(p.id);
-    list.appendChild(div);
-  });
-}
+    const $ = id => document.getElementById(id);
 
-async function loadProject(id) {
-  state.currentProjectId = id;
-  const proj = state.projects.find(p => p.id === id);
-  $('activeProjectBadge').textContent = proj.name;
-  $('activeProjectBadge').classList.remove('hidden');
-  
-  document.querySelector('[data-tab="workspace"]').click();
-  renderFileTree();
-  if(proj.files.length > 0) openFile(proj.files[0]);
-  appendChat('System', `Project **${proj.name}** loaded.`);
-}
+    // --- INITIALIZATION ---
+    function init() {
+        // Load Monaco
+        require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+        require(['vs/editor/editor.main'], function() {
+            state.editor = monaco.editor.create($('editorContainer'), {
+                value: "// Select a file from Projects to edit",
+                language: "javascript", theme: "vs-dark", automaticLayout: true,
+                minimap: { enabled: false }, fontSize: 13, wordWrap: "on",
+                scrollbar: { vertical: 'hidden', horizontal: 'hidden' }
+            });
+        });
 
-$('addProject').onclick = async () => {
-  const name = $('newProjName').value || `Project_${Date.now()}`;
-  const fileInput = $('projectFile').files;
-  if(fileInput.length === 0) return alert("Select files");
-  
-  const files = [];
-  for (let f of fileInput) files.push({ name: f.name, content: await f.text() });
-  
-  const project = { id: crypto.randomUUID(), name, files };
-  state.projects.push(project);
-  await dbOp('projects', 'put', project);
-  await saveSnapshot(project.id, "Initial Import");
-  
-  // Index vectors using Web Worker
-  $('addProject').textContent = "Indexing AST & Vectors...";
-  for (let file of files) {
-    const chunks = chunkText(file.content);
-    for(let c of chunks) {
-      const embedding = await getEmbedding(c);
-      await dbOp('vectors', 'put', { id: crypto.randomUUID(), projectId: project.id, fileName: file.name, content: c, embedding });
+        // Load Default Experts if empty
+        if (state.experts.length === 0) {
+            state.experts = [
+                { id: 1, name: 'React Expert', domain: 'Frontend', objectives: 'Optimization', temp: 0.7 },
+                { id: 2, name: 'Product Manager', domain: 'Strategy', objectives: 'Documentation', temp: 0.5 }
+            ];
+            localStorage.setItem('spire_experts', JSON.stringify(state.experts));
+        }
+
+        renderProjects();
+        renderExperts();
+        switchTab('projects');
+        if(state.apiKey) $('apiKey').value = state.apiKey;
     }
-  }
-  
-  $('addProject').textContent = "Create & Index Project";
-  $('newProjName').value = '';
-  renderProjectsList();
-  loadProject(project.id);
-};
 
-// Settings
-$('saveSettings').onclick = async () => {
-  await dbOp('settings', 'put', { key: 'apiKey', value: $('apiKey').value });
-  await dbOp('settings', 'put', { key: 'localModel', value: $('localModelSelect').value });
-  state.settings.apiKey = $('apiKey').value;
-  state.settings.localModel = $('localModelSelect').value;
-  alert("Settings Saved");
-};
+    // --- NAVIGATION ---
+    function switchTab(tabId) {
+        document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden-right'));
+        $(`tab-${tabId}`).classList.remove('hidden-right', 'hidden-left');
+        
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('nav-active'));
+        $(`nav-${tabId}`).classList.add('nav-active');
+        state.activeTab = tabId;
+    }
 
-// AI Actions
-$('btnSendAgent').onclick = () => {
-  const text = $('aiInput').value.trim();
-  if(!text) return;
-  $('aiInput').value = '';
-  runAutonomousAgent(text);
-};
+    // --- ZIP LOGIC ---
+    $('zipUpload').onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-$('btnRefactor').onclick = async () => {
-  const sel = state.editorInstance.getModel().getValueInRange(state.editorInstance.getSelection());
-  if(!sel) return alert("Select code in editor first");
-  runAutonomousAgent(`Refactor this code:\n\n${sel}\n\nMake it robust. File context: ${state.currentFile.name}`);
-};
+        showProgress("Processing Project", ["Unzipping Files", "Mapping Structure", "Finalizing"]);
+        updateStep(0, 'loading');
 
-$('btnGenTests').onclick = async () => {
-  if(!state.currentFile) return;
-  runAutonomousAgent(`Generate unit tests for the file ${state.currentFile.name}. Create a new file named ${state.currentFile.name.split('.')[0]}.test.js`);
-};
+        try {
+            const zip = new JSZip();
+            const content = await zip.loadAsync(file);
+            const extracted = [];
+            
+            updateStep(0, 'success');
+            updateStep(1, 'loading');
 
-// CI/CD Generator
-$('btnGenCI').onclick = async () => {
-  const proj = state.projects.find(p => p.id === state.currentProjectId);
-  if(!proj) return;
-  runAutonomousAgent(`Generate a GitHub Actions CI workflow for this project to run tests and linting.
-  Files in project: ${proj.files.map(f=>f.name).join(', ')}
-  Create the file at .github/workflows/ci.yml`);
-};
+            const entries = Object.keys(content.files).filter(p => !content.files[p].dir);
+            for (let path of entries) {
+                const text = await content.files[path].async("string");
+                extracted.push({ name: path, content: text });
+            }
 
-$('btnAnalyzeAST').onclick = async () => {
-  if(!state.currentFile) return;
-  const sym = extractSymbols(state.currentFile.content);
-  appendChat('AST Engine', `**Analysis for ${state.currentFile.name}**\n\n- Functions: ${sym.functions.join(', ')}\n- Classes: ${sym.classes.join(', ')}\n- Imports: ${sym.imports.join(', ')}\n- Calls: ${sym.calls.join(', ')}\n- Total Returns: ${sym.returns}`);
-};
+            const newProj = {
+                id: Date.now(),
+                name: file.name.replace('.zip', ''),
+                files: extracted,
+                enriched: null
+            };
 
-init();
+            state.projects.push(newProj);
+            localStorage.setItem('spire_projects', JSON.stringify(state.projects));
+            
+            updateStep(1, 'success');
+            renderProjects();
+        } catch (err) {
+            alert("ZIP Error: " + err.message);
+        } finally {
+            hideProgress();
+        }
+    };
+
+    // --- UI RENDERING ---
+    function renderProjects() {
+        const list = $('projectList');
+        list.innerHTML = '';
+        state.projects.forEach(p => {
+            const div = document.createElement('div');
+            div.className = "glass p-4 rounded-2xl flex justify-between items-center";
+            div.innerHTML = `
+                <div>
+                    <h3 class="font-bold text-sm">${p.name}</h3>
+                    <p class="text-[10px] text-slate-500 uppercase">${p.files.length} Files</p>
+                </div>
+                <button onclick="openProject(${p.id})" class="text-xs text-blue-400 font-bold">OPEN</button>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    function openProject(id) {
+        const proj = state.projects.find(p => p.id === id);
+        state.activeProject = proj;
+        $('projectTitle').textContent = proj.name;
+        
+        // Populate the editor with the first file
+        if(proj.files.length > 0) {
+            openFile(proj.files[0].name);
+        }
+        switchTab('editor');
+    }
+
+    function openFile(name) {
+        const file = state.activeProject.files.find(f => f.name === name);
+        state.currentFile = file;
+        $('activeFileName').textContent = name;
+        state.editor.setValue(file.content);
+        
+        const ext = name.split('.').pop();
+        let lang = 'javascript';
+        if(ext === 'html') lang = 'html';
+        if(ext === 'css') lang = 'css';
+        monaco.editor.setModelLanguage(state.editor.getModel(), lang);
+    }
+
+    // --- EDITOR UTILS ---
+    function insertCode(char) {
+        const selection = state.editor.getSelection();
+        state.editor.executeEdits("toolbar", [{
+            range: selection,
+            text: char,
+            forceMoveMarkers: true
+        }]);
+        state.editor.focus();
+    }
+
+    // --- PREVIEW ---
+    function runPreview() {
+        if(!state.currentFile) return;
+        const iframe = $('previewFrame');
+        let html = state.editor.getValue();
+        
+        // Inject JS/CSS from project
+        state.activeProject.files.forEach(f => {
+            if(f.name.endsWith('.css')) html = html.replace(f.name, URL.createObjectURL(new Blob([f.content], {type:'text/css'})));
+            if(f.name.endsWith('.js')) html = html.replace(f.name, URL.createObjectURL(new Blob([f.content], {type:'text/javascript'})));
+        });
+
+        iframe.src = URL.createObjectURL(new Blob([html], {type:'text/html'}));
+        $('previewOverlay').classList.remove('hidden');
+    }
+
+    function closePreview() { $('previewOverlay').classList.add('hidden'); $('previewFrame').src = ''; }
+
+    // --- PROGRESS LOGIC ---
+    function showProgress(title, steps) {
+        const list = $('stepList');
+        list.innerHTML = '';
+        $('progressTitle').textContent = title;
+        steps.forEach((s, i) => {
+            const d = document.createElement('div');
+            d.id = `step-${i}`;
+            d.className = "flex items-center gap-3 text-slate-500 text-xs transition-all";
+            d.innerHTML = `<div class="w-2 h-2 rounded-full border border-slate-700"></div><span>${s}</span>`;
+            list.appendChild(d);
+        });
+        $('progressOverlay').classList.remove('hidden');
+    }
+
+    function updateStep(idx, status) {
+        const el = document.getElementById(`step-${idx}`);
+        if(status === 'loading') el.classList.add('text-blue-400');
+        if(status === 'success') {
+            el.classList.replace('text-blue-400', 'text-green-400');
+            el.querySelector('div').classList.add('bg-green-500', 'border-green-500');
+        }
+    }
+
+    function hideProgress() { setTimeout(() => $('progressOverlay').classList.add('hidden'), 500); }
+
+    function saveSettings() {
+        localStorage.setItem('spire_apiKey', $('apiKey').value);
+        state.apiKey = $('apiKey').value;
+        alert("Saved!");
+    }
+
+    function renderExperts() {
+        const list = $('expertList');
+        list.innerHTML = '';
+        state.experts.forEach(e => {
+            const div = document.createElement('div');
+            div.className = "bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between";
+            div.innerHTML = `<span class="text-xs font-bold">${e.name}</span><span class="text-[10px] text-slate-500">${e.domain}</span>`;
+            list.appendChild(div);
+        });
+    }
+
+    function toggleHelp() { $('helpModal').classList.toggle('hidden'); }
+
+    async function downloadProjectZip() {
+        const zip = new JSZip();
+        state.activeProject.files.forEach(f => zip.file(f.name, f.content));
+        const blob = await zip.generateAsync({type: 'blob'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${state.activeProject.name}_v1.zip`;
+        a.click();
+    }
+
+    init();
 </script>
+
 </body>
 </html>
