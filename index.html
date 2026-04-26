@@ -1,330 +1,364 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
- <meta charset="UTF-8" />
- <meta name="viewport" content="width=device-width, initial-scale=1.0" />
- <title>AI Project Assistant</title>
- <script src="https://cdn.tailwindcss.com"></script>
- <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
- <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
- <style>
-   body { font-family: 'Inter', sans-serif; background: #f8fafc; }
-   .hidden { display: none; }
-   .tab-active { border-b-2 border-blue-500 font-semibold; }
-   .scrollable { overflow-y: auto; max-height: 300px; }
-   .chat-message {
-     padding: 12px;
-     margin-bottom: 10px;
-     border-radius: 8px;
-     max-width: 80%;
-     word-wrap: break-word;
-   }
-   .user-message { background-color: #e0f2fe; align-self: flex-end; margin-left: auto; }
-   .ai-message { background-color: #f3f4f6; align-self: flex-start; }
-   .chat-container {
-     display: flex;
-     flex-direction: column;
-     gap: 10px;
-     padding: 15px;
-     height: 300px;
-     overflow-y: auto;
-   }
-   .project-card, .expert-card {
-     border: 1px solid #e5e7eb;
-     border-radius: 8px;
-     padding: 12px;
-     margin-bottom: 12px;
-     background: white;
-   }
-   .modal {
-     display: none;
-     position: fixed;
-     top: 0; left: 0;
-     width: 100%; height: 100%;
-     background-color: rgba(0,0,0,0.5);
-     z-index: 1000;
-     justify-content: center;
-     align-items: center;
-   }
-   .modal-content {
-     background: white;
-     padding: 20px;
-     border-radius: 8px;
-     max-width: 600px;
-     width: 90%;
-     max-height: 80vh;
-     overflow-y: auto;
-   }
-   .close-modal { cursor: pointer; font-size: 1.5rem; }
-   .chat-history-item {
-     padding: 10px;
-     border: 1px solid #e5e7eb;
-     border-radius: 6px;
-     margin-bottom: 6px;
-     cursor: pointer;
-     background: #f9fafb;
-   }
-   .chat-history-item.active { background: #dbeafe; border-color: #3b82f6; }
-   .action-button {
-     padding: 4px 8px;
-     font-size: 0.8rem;
-     border-radius: 4px;
-     background: #e5e7eb;
-     cursor: pointer;
-     margin-right: 4px;
-   }
-   .action-button:hover { background: #d1d5db; }
-   .chat-stats {
-     display: flex;
-     justify-content: space-around;
-     margin-top: 10px;
-     padding: 10px;
-     background-color: #f9fafb;
-     border-radius: 8px;
-   }
-   .stat-item { text-align: center; }
-   .stat-value { font-size: 1.1rem; font-weight: bold; }
-   .stat-label { font-size: 0.75rem; color: #6b7280; }
-   .artifact-item {
-     margin-top: 12px;
-     padding: 10px;
-     border: 1px solid #e5e7eb;
-     border-radius: 6px;
-     background: #f9fafb;
-   }
-   .artifact-actions {
-     margin-top: 6px;
-   }
-   .artifact-content {
-     margin-top: 8px;
-     padding: 8px;
-     background: white;
-     border: 1px solid #e5e7eb;
-     border-radius: 4px;
-     white-space: pre-wrap;
-     font-family: monospace;
-     font-size: 0.85rem;
-   }
- </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Project Assistant</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%233b82f6%22/></svg>">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #f8fafc; }
+    .hidden { display: none; }
+    .tab-active { border-b-2 border-blue-500 font-semibold; }
+    .scrollable { overflow-y: auto; max-height: 300px; }
+    .chat-message {
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      max-width: 80%;
+      word-wrap: break-word;
+    }
+    .user-message { background-color: #e0f2fe; align-self: flex-end; margin-left: auto; }
+    .ai-message { background-color: #f3f4f6; align-self: flex-start; }
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 15px;
+      height: 300px;
+      overflow-y: auto;
+    }
+    .project-card, .expert-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: white;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .close-modal { cursor: pointer; font-size: 1.5rem; }
+    .chat-history-item {
+      padding: 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      background: #f9fafb;
+    }
+    .chat-history-item.active { background: #dbeafe; border-color: #3b82f6; }
+    .action-button {
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      border-radius: 4px;
+      background: #e5e7eb;
+      cursor: pointer;
+      margin-right: 4px;
+      transition: all 0.2s;
+    }
+    .action-button:hover { background: #d1d5db; transform: scale(1.05); }
+    .chat-stats {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #f9fafb;
+      border-radius: 8px;
+    }
+    .stat-item { text-align: center; }
+    .stat-value { font-size: 1.1rem; font-weight: bold; }
+    .stat-label { font-size: 0.75rem; color: #6b7280; }
+    .artifact-item {
+      margin-top: 12px;
+      padding: 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #f9fafb;
+    }
+    .artifact-content {
+      margin-top: 8px;
+      padding: 8px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 0.85rem;
+    }
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.85; }
+    }
+    .animate-pulse-slow {
+      animation: pulse-slow 4s infinite ease-in-out;
+    }
+    @keyframes fade-in-up {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-up {
+      animation: fade-in-up 0.3s ease-out forwards;
+    }
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .animate-modal-in {
+      animation: modal-in 0.25s ease-out forwards;
+    }
+  </style>
 </head>
 <body class="flex flex-col h-screen">
 
 <header class="bg-blue-600 text-white p-4 flex justify-between items-center">
- <h1 class="text-lg font-bold">AI Project Assistant</h1>
- <nav>
-   <button class="px-2 py-1 tab-btn tab-active" data-tab="settings">Settings</button>
-   <button class="px-2 py-1 tab-btn" data-tab="projects">Projects</button>
-   <button class="px-2 py-1 tab-btn" data-tab="chat">Chat</button>
- </nav>
+  <div class="flex items-center space-x-2">
+    <!-- AI Face Icon -->
+    <svg width="32" height="32" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="animate-pulse-slow">
+      <circle cx="100" cy="100" r="90" fill="#bfdbfe"/>
+      <circle cx="70" cy="80" r="12" fill="#1e40af"/>
+      <circle cx="130" cy="80" r="12" fill="#1e40af"/>
+      <circle cx="70" cy="80" r="5" fill="#ffffff"/>
+      <circle cx="130" cy="80" r="5" fill="#ffffff"/>
+      <path d="M70 130 Q100 160, 130 130" stroke="#1e40af" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <line x1="100" y1="10" x2="100" y2="40" stroke="#3b82f6" stroke-width="4"/>
+      <circle cx="100" cy="10" r="6" fill="#3b82f6"/>
+    </svg>
+    <h1 class="text-lg font-bold">AI Project Assistant</h1>
+  </div>
+  <nav>
+    <button class="px-2 py-1 tab-btn tab-active" data-tab="settings">Settings</button>
+    <button class="px-2 py-1 tab-btn" data-tab="projects">Projects</button>
+    <button class="px-2 py-1 tab-btn" data-tab="chat">Chat</button>
+  </nav>
 </header>
 
 <main class="flex-1 p-4 overflow-auto">
- <!-- Settings -->
- <section id="settings" class="tab-content">
-   <h2 class="text-xl font-bold mb-2">Settings</h2>
-   <div class="space-y-2 mb-4">
-     <label>Groq API Key: <input type="text" id="apiKey" class="border p-1 w-full" placeholder="Enter your Groq API key"></label>
-     <label>Model:
-       <select id="modelSelect" class="border p-1 w-full">
-         <option value="">Loading models...</option>
-       </select>
-     </label>
-     <label>Temperature:
-       <input type="range" id="temperature" min="0" max="2" step="0.1" value="1" class="w-full">
-       <span id="tempValue">1.0</span>
-     </label>
-     <label>Max Tokens: <input type="number" id="maxTokens" min="1" max="5000" value="1024" class="border p-1 w-full"></label>
-     <label>Machine Prompt: <textarea id="machinePrompt" class="border p-1 w-full" rows="3" placeholder="System prompt for AI"></textarea></label>
-     <button id="saveSettings" class="bg-blue-500 text-white px-3 py-1 mt-2">Save Settings</button>
-   </div>
+  <!-- Settings -->
+  <section id="settings" class="tab-content">
+    <h2 class="text-xl font-bold mb-2">Settings</h2>
+    <div class="space-y-2 mb-4">
+      <label>Groq API Key: <input type="text" id="apiKey" class="border p-1 w-full" placeholder="Enter your Groq API key"></label>
+      <label>Model:
+        <select id="modelSelect" class="border p-1 w-full">
+          <option value="">Loading models...</option>
+        </select>
+      </label>
+      <label>Temperature: 
+        <input type="range" id="temperature" min="0" max="2" step="0.1" value="1" class="w-full">
+        <span id="tempValue">1.0</span>
+      </label>
+      <label>Max Tokens: <input type="number" id="maxTokens" min="1" max="5000" value="1024" class="border p-1 w-full"></label>
+      <label>Machine Prompt: <textarea id="machinePrompt" class="border p-1 w-full" rows="3" placeholder="System prompt for AI"></textarea></label>
+      <button id="saveSettings" class="bg-blue-500 text-white px-3 py-1 mt-2">Save Settings</button>
+    </div>
 
-   <h2 class="text-xl font-bold mb-2">AI Experts (Roles)</h2>
-   <div class="mb-4">
-     <button id="addExpertBtn" class="bg-green-500 text-white px-3 py-1">+ Add New Expert</button>
-   </div>
-   <div id="expertsList" class="space-y-3"></div>
- </section>
+    <h2 class="text-xl font-bold mb-2">AI Experts (Roles)</h2>
+    <div class="mb-4">
+      <button id="addExpertBtn" class="bg-green-500 text-white px-3 py-1">+ Add New Expert</button>
+    </div>
+    <div id="expertsList" class="space-y-3"></div>
+  </section>
 
- <!-- Projects -->
- <section id="projects" class="tab-content hidden">
-   <h2 class="text-xl font-bold mb-2">Projects</h2>
-   <div class="space-y-2">
-     <label>Project URLs (one per line): <textarea id="projectUrls" class="border p-1 w-full" rows="2" placeholder="https://example.com"></textarea></label>
-     <label>Upload ZIP / Files: <input type="file" id="projectFile" multiple></label>
-     <label>Manual Code Input: <textarea id="manualCode" class="border p-1 w-full" rows="5" placeholder="Paste your code here..."></textarea></label>
-     <button id="addProject" class="bg-green-500 text-white px-3 py-1 mt-2">Add Project</button>
-   </div>
-   <div class="mt-4">
-     <h3 class="font-bold">Projects List</h3>
-     <div id="projectsList" class="space-y-2 scrollable border p-2 bg-white"></div>
-   </div>
- </section>
+  <!-- Projects -->
+  <section id="projects" class="tab-content hidden">
+    <h2 class="text-xl font-bold mb-2">Projects</h2>
+    <div class="space-y-2">
+      <label>Project URLs (one per line): <textarea id="projectUrls" class="border p-1 w-full" rows="2" placeholder="https://example.com"></textarea></label>
+      <label>Upload ZIP / Files: <input type="file" id="projectFile" multiple></label>
+      <label>Manual Code Input: <textarea id="manualCode" class="border p-1 w-full" rows="5" placeholder="Paste your code here..."></textarea></label>
+      <button id="addProject" class="bg-green-500 text-white px-3 py-1 mt-2">Add Project</button>
+    </div>
+    <div class="mt-4">
+      <h3 class="font-bold">Projects List</h3>
+      <div id="projectsList" class="space-y-2 scrollable border p-2 bg-white"></div>
+    </div>
+  </section>
 
- <!-- Chat -->
- <section id="chat" class="tab-content hidden">
-   <h2 class="text-xl font-bold mb-2">AI Chat</h2>
-   <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-     <!-- Chat History Panel -->
-     <div class="bg-white border rounded-lg p-3">
-       <div class="flex justify-between items-center mb-3">
-         <h3 class="font-bold">Chat History</h3>
-         <div class="flex space-x-1">
-           <button id="newChatBtn" class="p-1 text-sm bg-blue-100 hover:bg-blue-200 rounded">+</button>
-           <button id="exportChatBtn" class="p-1 text-sm bg-green-100 hover:bg-green-200 rounded">📤</button>
-         </div>
-       </div>
-       <div id="chatHistoryList" class="space-y-2 max-h-80 overflow-y-auto"></div>
-     </div>
+  <!-- Chat -->
+  <section id="chat" class="tab-content hidden">
+    <h2 class="text-xl font-bold mb-2">AI Chat</h2>
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div class="bg-white border rounded-lg p-3">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-bold">Chat History</h3>
+          <div class="flex space-x-1">
+            <button id="newChatBtn" class="p-1 text-sm bg-blue-100 hover:bg-blue-200 rounded transition-transform hover:scale-105 active:scale-95">+</button>
+            <button id="exportChatBtn" class="p-1 text-sm bg-green-100 hover:bg-green-200 rounded transition-transform hover:scale-105 active:scale-95">📤</button>
+          </div>
+        </div>
+        <div id="chatHistoryList" class="space-y-2 max-h-80 overflow-y-auto"></div>
+      </div>
 
-     <!-- Main Chat Area -->
-     <div class="col-span-1 lg:col-span-3 flex flex-col">
-       <div class="bg-white border rounded-lg p-3 mb-3">
-         <div class="flex flex-wrap gap-2 mb-3">
-           <label class="text-sm">Expert:</label>
-           <select id="roleSelect" class="border p-1 text-sm"></select>
-           <label class="text-sm">Project:</label>
-           <select id="projectSelect" class="border p-1 text-sm">
-             <option value="">None</option>
-           </select>
-         </div>
+      <div class="col-span-1 lg:col-span-3 flex flex-col">
+        <div class="bg-white border rounded-lg p-3 mb-3">
+          <div class="flex flex-wrap gap-2 mb-3">
+            <label class="text-sm">Expert:</label>
+            <select id="roleSelect" class="border p-1 text-sm"></select>
+            <label class="text-sm">Project:</label>
+            <select id="projectSelect" class="border p-1 text-sm">
+              <option value="">None</option>
+            </select>
+          </div>
 
-         <div id="quickActions" class="flex flex-wrap gap-1 mb-2"></div>
+          <div id="quickActions" class="flex flex-wrap gap-1 mb-2"></div>
 
-         <div id="chatBox" class="chat-container"></div>
+          <div id="chatBox" class="chat-container"></div>
 
-         <div class="mt-3">
-           <textarea id="chatInput" class="border p-2 w-full" rows="2" placeholder="Type your message..."></textarea>
-           <div class="flex space-x-2 mt-2">
-             <button id="sendChat" class="bg-blue-500 text-white px-3 py-1">Send</button>
-             <button id="clearChat" class="bg-gray-500 text-white px-3 py-1">Clear</button>
-           </div>
-         </div>
-       </div>
+          <div class="mt-3">
+            <textarea id="chatInput" class="border p-2 w-full" rows="2" placeholder="Type your message..."></textarea>
+            <div class="flex space-x-2 mt-2">
+              <button id="sendChat" class="bg-blue-500 text-white px-3 py-1 transition-transform hover:scale-105 active:scale-95">Send</button>
+              <button id="clearChat" class="bg-gray-500 text-white px-3 py-1">Clear</button>
+            </div>
+          </div>
+        </div>
 
-       <div id="chatStats" class="bg-white border rounded-lg p-3 hidden">
-         <h4 class="font-medium mb-2">Chat Summary</h4>
-         <div class="chat-stats">
-           <div class="stat-item">
-             <div class="stat-value" id="messageCount">0</div>
-             <div class="stat-label">Messages</div>
-           </div>
-           <div class="stat-item">
-             <div class="stat-value" id="tokenCount">0</div>
-             <div class="stat-label">Tokens</div>
-           </div>
-           <div class="stat-item">
-             <div class="stat-value" id="duration">0s</div>
-             <div class="stat-label">Duration</div>
-           </div>
-         </div>
-       </div>
-     </div>
-   </div>
- </section>
+        <div id="chatStats" class="bg-white border rounded-lg p-3 hidden">
+          <h4 class="font-medium mb-2">Chat Summary</h4>
+          <div class="chat-stats">
+            <div class="stat-item">
+              <div class="stat-value" id="messageCount">0</div>
+              <div class="stat-label">Messages</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="tokenCount">0</div>
+              <div class="stat-label">Tokens</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="duration">0s</div>
+              <div class="stat-label">Duration</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
 
 <!-- Expert Modal -->
 <div id="expertModal" class="modal">
- <div class="modal-content">
-   <div class="modal-header flex justify-between items-center mb-3">
-     <h3 id="expertModalTitle">Add Expert</h3>
-     <span class="close-modal" id="closeExpertModal">&times;</span>
-   </div>
-   <input type="hidden" id="expertId" />
-   <div class="mb-3">
-     <label class="block mb-1">Expert Name</label>
-     <input type="text" id="expertName" class="border p-2 w-full" />
-   </div>
-   <div class="mb-3">
-     <label class="block mb-1">Machine Prompt</label>
-     <textarea id="expertPrompt" class="border p-2 w-full" rows="4"></textarea>
-   </div>
-   <div class="grid grid-cols-2 gap-3 mb-3">
-     <div>
-       <label class="block mb-1">Temperature</label>
-       <input type="range" id="expertTemp" min="0" max="2" step="0.1" value="1" class="w-full" />
-       <span id="expertTempVal">1.0</span>
-     </div>
-     <div>
-       <label class="block mb-1">Max Tokens</label>
-       <input type="number" id="expertMaxTokens" min="1" max="5000" value="1024" class="border p-2 w-full" />
-     </div>
-   </div>
-   <div class="mb-3">
-     <label class="block mb-1">Quick Actions (comma-separated)</label>
-     <input type="text" id="expertQuickActions" class="border p-2 w-full" placeholder="Summarize, Debug, Refactor" />
-   </div>
-   <div class="flex justify-end space-x-2">
-     <button id="deleteExpertBtn" class="bg-red-500 text-white px-3 py-1 hidden">Delete</button>
-     <button id="cancelExpert" class="bg-gray-300 px-3 py-1">Cancel</button>
-     <button id="saveExpert" class="bg-blue-500 text-white px-3 py-1">Save</button>
-   </div>
- </div>
+  <div class="modal-content animate-modal-in">
+    <div class="modal-header flex justify-between items-center mb-3">
+      <h3 id="expertModalTitle">Add Expert</h3>
+      <span class="close-modal" id="closeExpertModal">&times;</span>
+    </div>
+    <input type="hidden" id="expertId" />
+    <div class="mb-3">
+      <label class="block mb-1">Expert Name</label>
+      <input type="text" id="expertName" class="border p-2 w-full" />
+    </div>
+    <div class="mb-3">
+      <label class="block mb-1">Domain Description</label>
+      <input type="text" id="expertDomain" class="border p-2 w-full" placeholder="e.g., Frontend React development" />
+    </div>
+    <div class="mb-3">
+      <label class="block mb-1">Key Objectives</label>
+      <textarea id="expertObjectives" class="border p-2 w-full" rows="2" placeholder="e.g., Write clean, performant React code"></textarea>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div>
+        <label class="block mb-1">Temperature</label>
+        <input type="range" id="expertTemp" min="0" max="2" step="0.1" value="1" class="w-full" />
+        <span id="expertTempVal">1.0</span>
+      </div>
+      <div>
+        <label class="block mb-1">Max Tokens</label>
+        <input type="number" id="expertMaxTokens" min="1" max="5000" value="1024" class="border p-2 w-full" />
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="block mb-1">Quick Actions (comma-separated)</label>
+      <input type="text" id="expertQuickActions" class="border p-2 w-full" placeholder="Summarize, Debug, Refactor" />
+    </div>
+    <div class="flex justify-end space-x-2">
+      <button id="deleteExpertBtn" class="bg-red-500 text-white px-3 py-1 hidden">Delete</button>
+      <button id="cancelExpert" class="bg-gray-300 px-3 py-1">Cancel</button>
+      <button id="saveExpert" class="bg-blue-500 text-white px-3 py-1">Save</button>
+    </div>
+  </div>
 </div>
 
 <!-- Project Detail Modal -->
 <div id="projectDetailModal" class="modal">
- <div class="modal-content">
-   <div class="modal-header flex justify-between items-center mb-3">
-     <h3>Inspect Project</h3>
-     <span class="close-modal" id="closeProjectModal">&times;</span>
-   </div>
-   <input type="hidden" id="inspectProjectId" />
-   <div class="mb-3">
-     <strong>URLs:</strong>
-     <div id="inspectUrls" class="text-sm bg-gray-50 p-2 rounded"></div>
-   </div>
-   <div class="mb-3">
-     <strong>Files:</strong>
-     <div id="inspectFiles" class="text-sm bg-gray-50 p-2 rounded"></div>
-   </div>
-   <div class="mb-3">
-     <strong>Code:</strong>
-     <pre id="inspectCode" class="text-xs bg-gray-50 p-2 rounded overflow-x-auto"></pre>
-   </div>
+  <div class="modal-content animate-modal-in">
+    <div class="modal-header flex justify-between items-center mb-3">
+      <h3>Inspect Project</h3>
+      <span class="close-modal" id="closeProjectModal">&times;</span>
+    </div>
+    <input type="hidden" id="inspectProjectId" />
+    <div class="mb-3">
+      <strong>URLs:</strong>
+      <div id="inspectUrls" class="text-sm bg-gray-50 p-2 rounded"></div>
+    </div>
+    <div class="mb-3">
+      <strong>Files:</strong>
+      <div id="inspectFiles" class="text-sm bg-gray-50 p-2 rounded"></div>
+    </div>
+    <div class="mb-3">
+      <strong>Code:</strong>
+      <pre id="inspectCode" class="text-xs bg-gray-50 p-2 rounded overflow-x-auto"></pre>
+    </div>
 
-   <div id="inspectionForm">
-     <h4 class="font-bold mt-4 mb-2">AI Analysis Tasks</h4>
-     <div class="space-y-2">
-       <label><input type="checkbox" id="taskSummarize" /> Summarize app</label>
-       <label><input type="checkbox" id="taskTechnical" /> Technical description</label>
-       <label><input type="checkbox" id="taskCategorize" /> Categorize</label>
-       <label><input type="checkbox" id="taskAppJson" /> Generate app.json</label>
-     </div>
+    <div id="inspectionForm">
+      <h4 class="font-bold mt-4 mb-2">AI Analysis Tasks</h4>
+      <div class="space-y-2">
+        <label><input type="checkbox" id="taskSummarize" /> Summarize app</label>
+        <label><input type="checkbox" id="taskTechnical" /> Technical description</label>
+        <label><input type="checkbox" id="taskCategorize" /> Categorize</label>
+        <label><input type="checkbox" id="taskAppJson" /> Generate app.json</label>
+      </div>
+      <div class="mt-4 flex justify-end">
+        <button id="submitProjectAnalysis" class="bg-blue-500 text-white px-3 py-1">Submit</button>
+      </div>
+    </div>
 
-     <div class="mt-4 flex justify-end">
-       <button id="submitProjectAnalysis" class="bg-blue-500 text-white px-3 py-1">Submit</button>
-     </div>
-   </div>
-
-   <div id="artifactsList" class="mt-6 hidden"></div>
- </div>
+    <div id="artifactsList" class="mt-6 hidden"></div>
+  </div>
 </div>
 
 <!-- Export Modal -->
 <div id="exportModal" class="modal">
- <div class="modal-content">
-   <div class="modal-header flex justify-between items-center mb-3">
-     <h3>Export Chat</h3>
-     <span class="close-modal" id="closeExportModal">&times;</span>
-   </div>
-   <div class="mb-3">
-     <label class="block mb-1">Format</label>
-     <select id="exportFormat" class="border p-2 w-full">
-       <option value="txt">Text (.txt)</option>
-       <option value="json">JSON (.json)</option>
-       <option value="html">HTML/PDF (.html)</option>
-     </select>
-   </div>
-   <div class="mb-3">
-     <label class="block mb-1">Filename</label>
-     <input type="text" id="exportFilename" class="border p-2 w-full" placeholder="chat_export" />
-   </div>
-   <div class="flex justify-end space-x-2">
-     <button id="cancelExport" class="bg-gray-300 px-3 py-1">Cancel</button>
-     <button id="confirmExport" class="bg-blue-500 text-white px-3 py-1">Export</button>
-   </div>
- </div>
+  <div class="modal-content animate-modal-in">
+    <div class="modal-header flex justify-between items-center mb-3">
+      <h3>Export Chat</h3>
+      <span class="close-modal" id="closeExportModal">&times;</span>
+    </div>
+    <div class="mb-3">
+      <label class="block mb-1">Format</label>
+      <select id="exportFormat" class="border p-2 w-full">
+        <option value="txt">Text (.txt)</option>
+        <option value="json">JSON (.json)</option>
+        <option value="html">HTML/PDF (.html)</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="block mb-1">Filename</label>
+      <input type="text" id="exportFilename" class="border p-2 w-full" placeholder="chat_export" />
+    </div>
+    <div class="flex justify-end space-x-2">
+      <button id="cancelExport" class="bg-gray-300 px-3 py-1">Cancel</button>
+      <button id="confirmExport" class="bg-blue-500 text-white px-3 py-1">Export</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -332,204 +366,299 @@
 const tabs = document.querySelectorAll('.tab-btn');
 const contents = document.querySelectorAll('.tab-content');
 tabs.forEach(tab => tab.addEventListener('click', () => {
- tabs.forEach(t => t.classList.remove('tab-active'));
- contents.forEach(c => c.classList.add('hidden'));
- tab.classList.add('tab-active');
- document.getElementById(tab.dataset.tab).classList.remove('hidden');
+  tabs.forEach(t => t.classList.remove('tab-active'));
+  contents.forEach(c => c.classList.add('hidden'));
+  tab.classList.add('tab-active');
+  document.getElementById(tab.dataset.tab).classList.remove('hidden');
 }));
+
+/* ---------- Structured Prompt Template ---------- */
+function buildExpertPrompt(role, domain, objectives) {
+  return `You will be acting as a domain expert to provide specialized advice and guidance. Your role and expertise area are defined below.
+
+<role>
+${role}
+</role>
+
+<domain_description>
+${domain}
+</domain_description>
+
+<key_objectives>
+${objectives}
+</key_objectives>
+
+You are ${role}, an expert in ${domain}. Your goal is to provide ${objectives}.
+
+Follow these core behavioral guidelines:
+
+**Context Usage:**
+- Base all responses strictly on the provided context below. Do not hallucinate or invent information not present in the context or your verified training knowledge.
+- If the context is insufficient to provide accurate advice, explicitly state "I don't have enough information about [specific missing details]" and ask for the needed information.
+- Do not make assumptions beyond what is clearly stated or reasonably inferred from the context.
+
+**Response Approach:**
+- Use step-by-step reasoning internally before responding, but present only your final answer unless specifically asked to show your thinking process.
+- Be proactive: if the user query implies you need additional information (such as target audience, budget, technical specifications, etc.), ask clarifying questions.
+- Keep responses concise, professional, and actionable.
+- Use bullet points or numbered lists when presenting multiple items or steps.
+- Maintain your expert role consistently throughout the interaction.
+
+**Safety and Accuracy:**
+- Only provide advice based on verified knowledge from the context or established best practices in your domain.
+- If uncertain about any aspect, say "I don't have enough information to provide accurate guidance on this" and suggest next steps.
+- Provide balanced, ethical advice that focuses on value creation rather than manipulation or harmful practices.
+
+**Output Format:**
+- For multi-step processes, use numbered lists.
+- End responses with a clear summary or recommended next action when relevant.
+- Keep language simple and direct while maintaining professional expertise.
+
+<context>
+{{CONTEXT}}
+</context>
+
+<user_query>
+{{USER_QUERY}}
+</user_query>
+
+Before providing your response, use the scratchpad below to analyze the context, identify what information you have available, determine if you need additional details, and plan your expert response.
+
+<scratchpad>
+[Think through the user query, assess the available context, identify any gaps in information needed to provide expert advice, and plan your response structure]
+</scratchpad>
+
+Provide your expert response here:`;
+}
 
 /* ---------- Settings & Models ---------- */
 async function fetchModels(apiKey) {
- if (!apiKey) return;
- try {
-   const res = await axios.get('https://api.groq.com/openai/v1/models', {
-     headers: { 'Authorization': `Bearer ${apiKey}` }
-   });
-   const models = res.data.data.map(m => m.id).sort();
-   const sel = document.getElementById('modelSelect');
-   sel.innerHTML = '';
-   models.forEach(m => {
-     const opt = document.createElement('option');
-     opt.value = m;
-     opt.textContent = m;
-     sel.appendChild(opt);
-   });
- } catch (err) {
-   console.error('Failed to fetch models:', err);
-   document.getElementById('modelSelect').innerHTML = '<option value="">Error loading models</option>';
- }
+  if (!apiKey) return;
+  try {
+    const res = await axios.get('https://api.groq.com/openai/v1/models', {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    const models = res.data.data.map(m => m.id).sort();
+    const sel = document.getElementById('modelSelect');
+    sel.innerHTML = '';
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      sel.appendChild(opt);
+    });
+  } catch (err) {
+    console.error('Failed to fetch models:', err);
+    document.getElementById('modelSelect').innerHTML = '<option value="">Error loading models</option>';
+  }
 }
 
 function loadSettings() {
- const apiKey = localStorage.getItem('groqApiKey') || '';
- const model = localStorage.getItem('groqModel') || '';
- const temp = localStorage.getItem('groqTemp') || '1';
- const maxTokens = localStorage.getItem('groqMaxTokens') || '1024';
- const prompt = localStorage.getItem('groqPrompt') || '';
+  const apiKey = localStorage.getItem('groqApiKey') || '';
+  const model = localStorage.getItem('groqModel') || '';
+  const temp = localStorage.getItem('groqTemp') || '1';
+  const maxTokens = localStorage.getItem('groqMaxTokens') || '1024';
+  const prompt = localStorage.getItem('groqPrompt') || '';
 
- document.getElementById('apiKey').value = apiKey;
- document.getElementById('temperature').value = temp;
- document.getElementById('tempValue').textContent = temp;
- document.getElementById('maxTokens').value = maxTokens;
- document.getElementById('machinePrompt').value = prompt;
+  document.getElementById('apiKey').value = apiKey;
+  document.getElementById('temperature').value = temp;
+  document.getElementById('tempValue').textContent = temp;
+  document.getElementById('maxTokens').value = maxTokens;
+  document.getElementById('machinePrompt').value = prompt;
 
- if (apiKey) {
-   fetchModels(apiKey);
-   if (model) {
-     document.getElementById('modelSelect').value = model;
-   }
- }
+  if (apiKey) {
+    fetchModels(apiKey);
+    if (model) {
+      document.getElementById('modelSelect').value = model;
+    }
+  }
 }
 
 document.getElementById('temperature').addEventListener('input', e => {
- document.getElementById('tempValue').textContent = e.target.value;
+  document.getElementById('tempValue').textContent = e.target.value;
 });
 
 document.getElementById('saveSettings').addEventListener('click', () => {
- const apiKey = document.getElementById('apiKey').value.trim();
- const model = document.getElementById('modelSelect').value;
- const temp = document.getElementById('temperature').value;
- const maxTokens = document.getElementById('maxTokens').value;
- const prompt = document.getElementById('machinePrompt').value;
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const model = document.getElementById('modelSelect').value;
+  const temp = document.getElementById('temperature').value;
+  const maxTokens = document.getElementById('maxTokens').value;
+  const prompt = document.getElementById('machinePrompt').value;
 
- localStorage.setItem('groqApiKey', apiKey);
- localStorage.setItem('groqModel', model);
- localStorage.setItem('groqTemp', temp);
- localStorage.setItem('groqMaxTokens', maxTokens);
- localStorage.setItem('groqPrompt', prompt);
+  localStorage.setItem('groqApiKey', apiKey);
+  localStorage.setItem('groqModel', model);
+  localStorage.setItem('groqTemp', temp);
+  localStorage.setItem('groqMaxTokens', maxTokens);
+  localStorage.setItem('groqPrompt', prompt);
 
- if (apiKey) fetchModels(apiKey);
- alert('Settings saved!');
+  if (apiKey) fetchModels(apiKey);
+  alert('Settings saved!');
 });
 
 /* ---------- Experts (AI Roles) ---------- */
 let experts = [
- { id: 'general', name: 'General', prompt: '', temperature: 1, maxTokens: 1024, quickActions: ['Hello', 'Help'] },
- { id: 'developer', name: 'Developer', prompt: 'You are a senior software engineer.', temperature: 0.7, maxTokens: 2048, quickActions: ['Summarize', 'Debug', 'Refactor'] },
- { id: 'designer', name: 'Designer/UI', prompt: 'You are a UI/UX designer.', temperature: 0.8, maxTokens: 1024, quickActions: ['Improve UI', 'Suggest colors', 'Layout feedback'] },
- { id: 'marketing', name: 'Marketing', prompt: 'You are a digital marketing strategist.', temperature: 0.9, maxTokens: 1024, quickActions: ['Write ad', 'Slogan', 'Audience analysis'] },
- { id: 'creative', name: 'Creative', prompt: 'You are a creative writer and ideator.', temperature: 1.2, maxTokens: 1024, quickActions: ['Brainstorm', 'Story idea', 'Poem'] }
+  {
+    id: 'developer',
+    name: 'Senior React Developer',
+    domainDescription: 'Modern React, TypeScript, and frontend architecture',
+    keyObjectives: 'Write clean, performant, and maintainable React code; suggest best practices; debug complex UI issues',
+    temperature: 0.3,
+    maxTokens: 1024,
+    quickActions: ['Debug component', 'Optimize performance', 'Suggest hooks pattern']
+  },
+  {
+    id: 'seo_specialist',
+    name: 'SEO Specialist',
+    domainDescription: 'Search engine optimization, content strategy, and technical SEO',
+    keyObjectives: 'Analyze and improve website visibility, suggest keyword strategies, audit technical SEO issues',
+    temperature: 0.6,
+    maxTokens: 1024,
+    quickActions: ['Audit SEO', 'Suggest keywords', 'Improve meta tags']
+  },
+  {
+    id: 'product_manager',
+    name: 'Product Manager',
+    domainDescription: 'Product strategy, user stories, and roadmap planning',
+    keyObjectives: 'Define product requirements, prioritize features, write user stories',
+    temperature: 0.7,
+    maxTokens: 1024,
+    quickActions: ['Write user story', 'Prioritize backlog', 'Define MVP']
+  }
 ];
 
 function loadExperts() {
- const saved = localStorage.getItem('aiExperts');
- if (saved) experts = JSON.parse(saved);
- renderExperts();
- populateRoleSelect();
+  const saved = localStorage.getItem('aiExperts');
+  if (saved) experts = JSON.parse(saved);
+  else {
+    // Auto-generate prompts for defaults
+    experts = experts.map(exp => ({
+      ...exp,
+      prompt: buildExpertPrompt(exp.name, exp.domainDescription, exp.keyObjectives)
+    }));
+  }
+  renderExperts();
+  populateRoleSelect();
 }
 
 function renderExperts() {
- const list = document.getElementById('expertsList');
- list.innerHTML = '';
- experts.forEach(exp => {
-   const card = document.createElement('div');
-   card.className = 'expert-card';
-   card.innerHTML = `
-     <div class="flex justify-between">
-       <strong>${exp.name}</strong>
-       <button class="edit-expert text-sm bg-blue-100 px-2 py-1 rounded" data-id="${exp.id}">Edit</button>
-     </div>
-     <div class="text-xs text-gray-600 mt-1">${exp.prompt.substring(0, 80)}${exp.prompt.length > 80 ? '...' : ''}</div>
-     <div class="text-xs text-gray-500">Actions: ${exp.quickActions.join(', ')}</div>
-   `;
-   list.appendChild(card);
- });
+  const list = document.getElementById('expertsList');
+  list.innerHTML = '';
+  experts.forEach(exp => {
+    const card = document.createElement('div');
+    card.className = 'expert-card';
+    card.innerHTML = `
+      <div class="flex justify-between">
+        <strong>${exp.name}</strong>
+        <button class="edit-expert text-sm bg-blue-100 px-2 py-1 rounded" data-id="${exp.id}">Edit</button>
+      </div>
+      <div class="text-xs text-gray-600 mt-1">${exp.domainDescription}</div>
+      <div class="text-xs text-gray-500">Actions: ${exp.quickActions.join(', ')}</div>
+    `;
+    list.appendChild(card);
+  });
 
- document.querySelectorAll('.edit-expert').forEach(btn => {
-   btn.addEventListener('click', () => openExpertModal(btn.dataset.id));
- });
+  document.querySelectorAll('.edit-expert').forEach(btn => {
+    btn.addEventListener('click', () => openExpertModal(btn.dataset.id));
+  });
 }
 
 function populateRoleSelect() {
- const select = document.getElementById('roleSelect');
- select.innerHTML = '';
- experts.forEach(exp => {
-   const opt = document.createElement('option');
-   opt.value = exp.id;
-   opt.textContent = exp.name;
-   select.appendChild(opt);
- });
+  const select = document.getElementById('roleSelect');
+  select.innerHTML = '';
+  experts.forEach(exp => {
+    const opt = document.createElement('option');
+    opt.value = exp.id;
+    opt.textContent = exp.name;
+    select.appendChild(opt);
+  });
 }
 
 function openExpertModal(id = null) {
- const modal = document.getElementById('expertModal');
- const title = document.getElementById('expertModalTitle');
- const delBtn = document.getElementById('deleteExpertBtn');
+  const modal = document.getElementById('expertModal');
+  const title = document.getElementById('expertModalTitle');
+  const delBtn = document.getElementById('deleteExpertBtn');
 
- if (id) {
-   const exp = experts.find(e => e.id === id);
-   document.getElementById('expertId').value = exp.id;
-   document.getElementById('expertName').value = exp.name;
-   document.getElementById('expertPrompt').value = exp.prompt;
-   document.getElementById('expertTemp').value = exp.temperature;
-   document.getElementById('expertTempVal').textContent = exp.temperature;
-   document.getElementById('expertMaxTokens').value = exp.maxTokens;
-   document.getElementById('expertQuickActions').value = exp.quickActions.join(', ');
-   title.textContent = 'Edit Expert';
-   delBtn.classList.remove('hidden');
-   delBtn.onclick = () => deleteExpert(id);
- } else {
-   document.getElementById('expertId').value = '';
-   document.getElementById('expertName').value = '';
-   document.getElementById('expertPrompt').value = '';
-   document.getElementById('expertTemp').value = 1;
-   document.getElementById('expertTempVal').textContent = '1.0';
-   document.getElementById('expertMaxTokens').value = 1024;
-   document.getElementById('expertQuickActions').value = '';
-   title.textContent = 'Add New Expert';
-   delBtn.classList.add('hidden');
- }
+  if (id) {
+    const exp = experts.find(e => e.id === id);
+    document.getElementById('expertId').value = exp.id;
+    document.getElementById('expertName').value = exp.name;
+    document.getElementById('expertDomain').value = exp.domainDescription;
+    document.getElementById('expertObjectives').value = exp.keyObjectives;
+    document.getElementById('expertTemp').value = exp.temperature;
+    document.getElementById('expertTempVal').textContent = exp.temperature;
+    document.getElementById('expertMaxTokens').value = exp.maxTokens;
+    document.getElementById('expertQuickActions').value = exp.quickActions.join(', ');
+    title.textContent = 'Edit Expert';
+    delBtn.classList.remove('hidden');
+    delBtn.onclick = () => deleteExpert(id);
+  } else {
+    document.getElementById('expertId').value = '';
+    document.getElementById('expertName').value = '';
+    document.getElementById('expertDomain').value = '';
+    document.getElementById('expertObjectives').value = '';
+    document.getElementById('expertTemp').value = 1;
+    document.getElementById('expertTempVal').textContent = '1.0';
+    document.getElementById('expertMaxTokens').value = 1024;
+    document.getElementById('expertQuickActions').value = '';
+    title.textContent = 'Add New Expert';
+    delBtn.classList.add('hidden');
+  }
 
- modal.style.display = 'flex';
+  modal.style.display = 'flex';
 }
 
 function deleteExpert(id) {
- if (confirm('Delete this expert?')) {
-   experts = experts.filter(e => e.id !== id);
-   saveExperts();
-   renderExperts();
-   populateRoleSelect();
-   document.getElementById('expertModal').style.display = 'none';
- }
+  if (confirm('Delete this expert?')) {
+    experts = experts.filter(e => e.id !== id);
+    saveExperts();
+    renderExperts();
+    populateRoleSelect();
+    document.getElementById('expertModal').style.display = 'none';
+  }
 }
 
 function saveExperts() {
- localStorage.setItem('aiExperts', JSON.stringify(experts));
+  localStorage.setItem('aiExperts', JSON.stringify(experts));
 }
 
 document.getElementById('addExpertBtn').addEventListener('click', () => openExpertModal());
 document.getElementById('expertTemp').addEventListener('input', e => {
- document.getElementById('expertTempVal').textContent = e.target.value;
+  document.getElementById('expertTempVal').textContent = e.target.value;
 });
 document.getElementById('saveExpert').addEventListener('click', () => {
- const id = document.getElementById('expertId').value || Date.now().toString();
- const name = document.getElementById('expertName').value.trim();
- const prompt = document.getElementById('expertPrompt').value.trim();
- const temp = parseFloat(document.getElementById('expertTemp').value);
- const maxTokens = parseInt(document.getElementById('expertMaxTokens').value);
- const quickActions = document.getElementById('expertQuickActions').value.split(',').map(a => a.trim()).filter(Boolean);
+  const id = document.getElementById('expertId').value || Date.now().toString();
+  const name = document.getElementById('expertName').value.trim();
+  const domain = document.getElementById('expertDomain').value.trim();
+  const objectives = document.getElementById('expertObjectives').value.trim();
+  const temp = parseFloat(document.getElementById('expertTemp').value);
+  const maxTokens = parseInt(document.getElementById('expertMaxTokens').value);
+  const quickActions = document.getElementById('expertQuickActions').value.split(',').map(a => a.trim()).filter(Boolean);
 
- if (!name) return alert('Name is required.');
+  if (!name || !domain || !objectives) {
+    alert('All fields are required.');
+    return;
+  }
 
- const exp = { id, name, prompt, temperature: temp, maxTokens, quickActions };
- const idx = experts.findIndex(e => e.id === id);
- if (idx >= 0) {
-   experts[idx] = exp;
- } else {
-   experts.push(exp);
- }
+  const prompt = buildExpertPrompt(name, domain, objectives);
+  const exp = { id, name, domainDescription: domain, keyObjectives: objectives, prompt, temperature: temp, maxTokens, quickActions };
+  const idx = experts.findIndex(e => e.id === id);
+  if (idx >= 0) {
+    experts[idx] = exp;
+  } else {
+    experts.push(exp);
+  }
 
- saveExperts();
- renderExperts();
- populateRoleSelect();
- document.getElementById('expertModal').style.display = 'none';
+  saveExperts();
+  renderExperts();
+  populateRoleSelect();
+  document.getElementById('expertModal').style.display = 'none';
 });
 
 document.getElementById('cancelExpert').addEventListener('click', () => {
- document.getElementById('expertModal').style.display = 'none';
+  document.getElementById('expertModal').style.display = 'none';
 });
 document.getElementById('closeExpertModal').addEventListener('click', () => {
- document.getElementById('expertModal').style.display = 'none';
+  document.getElementById('expertModal').style.display = 'none';
 });
 
 /* ---------- Projects ---------- */
@@ -537,348 +666,298 @@ let projects = [];
 const projectsList = document.getElementById('projectsList');
 
 function loadProjects() {
- const saved = localStorage.getItem('aiProjects');
- if (saved) projects = JSON.parse(saved);
- updateProjectsUI();
- populateProjectSelect();
+  const saved = localStorage.getItem('aiProjects');
+  if (saved) projects = JSON.parse(saved);
+  updateProjectsUI();
+  populateProjectSelect();
 }
 
-function inspectProject(id) {
- const p = projects.find(proj => proj.id === id);
- if (!p) return;
-
- document.getElementById('inspectProjectId').value = p.id;
- document.getElementById('inspectUrls').textContent = p.urls.join(', ') || '—';
- document.getElementById('inspectFiles').textContent = p.files.map(f => f.name).join(', ') || '—';
- document.getElementById('inspectCode').textContent = p.code || '—';
-
- // Show form, hide artifacts initially
- document.getElementById('inspectionForm').classList.remove('hidden');
- document.getElementById('artifactsList').classList.add('hidden');
- document.getElementById('artifactsList').innerHTML = '';
-
- // Reset checkboxes
- ['taskSummarize', 'taskTechnical', 'taskCategorize', 'taskAppJson'].forEach(id => {
-   document.getElementById(id).checked = false;
- });
-
- document.getElementById('projectDetailModal').style.display = 'flex';
-}
-
-// NEW: Generate AI content for selected tasks
-async function generateArtifactContent(project, tasks) {
- const apiKey = localStorage.getItem('groqApiKey');
- if (!apiKey) {
-   alert('Please set your Groq API key in Settings to generate AI insights.');
-   return {};
- }
-
- // Build context
- let context = '';
- if (project.urls.length) context += `URLs: ${project.urls.join(', ')}\n`;
- if (project.code) context += `Code:\n${project.code}\n`;
- project.files.forEach(f => {
-   context += `File: ${f.name}\n${f.content.substring(0, 1000)}...\n`;
- });
-
- const model = localStorage.getItem('groqModel') || 'llama-3.3-70b-versatile';
- const results = {};
-
- const promises = [];
-
- if (tasks.summarize) {
-   promises.push(
-     axios.post('https://api.groq.com/openai/v1/chat/completions', {
-       model,
-       messages: [{ role: 'user', content: `Summarize this project in 2-3 sentences:\n\n${context}` }],
-       temperature: 0.7,
-       max_tokens: 300
-     }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
-     .then(res => {
-       results.summary = res.data.choices?.[0]?.message?.content || 'Summary not available.';
-     })
-   );
- }
-
- if (tasks.technical) {
-   promises.push(
-     axios.post('https://api.groq.com/openai/v1/chat/completions', {
-       model,
-       messages: [{ role: 'user', content: `Provide a technical description of this project (stack, architecture, key features):\n\n${context}` }],
-       temperature: 0.5,
-       max_tokens: 500
-     }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
-     .then(res => {
-       results.technical = res.data.choices?.[0]?.message?.content || 'Technical description not available.';
-     })
-   );
- }
-
- if (tasks.categorize) {
-   promises.push(
-     axios.post('https://api.groq.com/openai/v1/chat/completions', {
-       model,
-       messages: [{ role: 'user', content: `Categorize this project. Return only a single category name (e.g., "E-commerce", "Productivity", "Social Media"):\n\n${context}` }],
-       temperature: 0.3,
-       max_tokens: 50
-     }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
-     .then(res => {
-       results.category = res.data.choices?.[0]?.message?.content?.trim() || 'Uncategorized';
-     })
-   );
- }
-
- if (tasks.appJson) {
-   promises.push(
-     axios.post('https://api.groq.com/openai/v1/chat/completions', {
-       model,
-       messages: [{ role: 'user', content: `Generate a valid JSON object with these fields: title (string), description (string), url (string, use first URL or empty), category (string), tags (array of 3-5 strings), technologies (array of strings). Use this context:\n\n${context}` }],
-       temperature: 0.6,
-       max_tokens: 500
-     }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
-     .then(res => {
-       let jsonStr = res.data.choices?.[0]?.message?.content || '{}';
-       // Extract JSON if wrapped in ```json...```
-       const match = jsonStr.match(/```(?:json)?\s*({[\s\S]*?})\s*```/);
-       if (match) jsonStr = match[1];
-       try {
-         results.appJson = JSON.parse(jsonStr);
-       } catch (e) {
-         results.appJson = { error: 'Failed to parse JSON', raw: jsonStr };
-       }
-     })
-   );
- }
-
- await Promise.all(promises);
- return results;
-}
-
-document.getElementById('submitProjectAnalysis').addEventListener('click', async () => {
- const id = document.getElementById('inspectProjectId').value;
- const project = projects.find(p => p.id === id);
- if (!project) return;
-
- const tasks = {
-   summarize: document.getElementById('taskSummarize').checked,
-   technical: document.getElementById('taskTechnical').checked,
-   categorize: document.getElementById('taskCategorize').checked,
-   appJson: document.getElementById('taskAppJson').checked
- };
-
- if (!tasks.summarize && !tasks.technical && !tasks.categorize && !tasks.appJson) {
-   alert('Please select at least one task.');
-   return;
- }
-
- // Show loading
- document.getElementById('submitProjectAnalysis').textContent = 'Generating...';
- document.getElementById('submitProjectAnalysis').disabled = true;
-
- const results = await generateArtifactContent(project, tasks);
-
- // Save enriched data
- project.enriched = {
-   tasks,
-   ...results,
-   analyzedAt: new Date().toISOString()
- };
- localStorage.setItem('aiProjects', JSON.stringify(projects));
-
- // Render artifacts
- renderArtifacts(project.enriched);
-
- document.getElementById('submitProjectAnalysis').textContent = 'Submit';
- document.getElementById('submitProjectAnalysis').disabled = false;
-});
-
-function renderArtifacts(enriched) {
- const list = document.getElementById('artifactsList');
- const form = document.getElementById('inspectionForm');
- form.classList.add('hidden');
- list.classList.remove('hidden');
- list.innerHTML = '<h4 class="font-bold">Generated Artifacts</h4>';
-
- if (enriched.summary) {
-   addArtifactItem('Summary', 'summary.md', enriched.summary, (val) => {
-     enriched.summary = val;
-     saveEnriched();
-   });
- }
-
- if (enriched.technical) {
-   addArtifactItem('Technical Description', 'technical.md', enriched.technical, (val) => {
-     enriched.technical = val;
-     saveEnriched();
-   });
- }
-
- if (enriched.category) {
-   addArtifactItem('Category', 'category.txt', enriched.category, (val) => {
-     enriched.category = val;
-     saveEnriched();
-   });
- }
-
- if (enriched.appJson) {
-   const jsonStr = typeof enriched.appJson === 'string' ? enriched.appJson : JSON.stringify(enriched.appJson, null, 2);
-   addArtifactItem('App Metadata', 'app.json', jsonStr, (val) => {
-     try {
-       enriched.appJson = JSON.parse(val);
-     } catch (e) {
-       alert('Invalid JSON. Please fix syntax.');
-       return;
-     }
-     saveEnriched();
-   });
- }
-}
-
-function addArtifactItem(title, filename, content, onSave) {
- const list = document.getElementById('artifactsList');
- const item = document.createElement('div');
- item.className = 'artifact-item';
- item.innerHTML = `
-   <div><strong>${title}</strong> <code>${filename}</code></div>
-   <div class="artifact-actions">
-     <button class="edit-btn bg-gray-200 px-2 py-1 text-xs rounded">Edit</button>
-   </div>
-   <pre class="artifact-content hidden" contenteditable="true">${content}</pre>
- `;
- list.appendChild(item);
-
- const editBtn = item.querySelector('.edit-btn');
- const contentEl = item.querySelector('.artifact-content');
-
- editBtn.addEventListener('click', () => {
-   if (contentEl.classList.contains('hidden')) {
-     contentEl.classList.remove('hidden');
-     editBtn.textContent = 'Save';
-   } else {
-     const newValue = contentEl.textContent;
-     onSave(newValue);
-     contentEl.classList.add('hidden');
-     editBtn.textContent = 'Edit';
-   }
- });
-}
-
-function saveEnriched() {
- localStorage.setItem('aiProjects', JSON.stringify(projects));
-} 
- 
 function updateProjectsUI() {
- projectsList.innerHTML = '';
- if (projects.length === 0) {
-   projectsList.innerHTML = '<p class="text-gray-500 text-center">No projects added yet.</p>';
-   return;
- }
- projects.forEach(p => {
-   const card = document.createElement('div');
-   card.className = 'project-card cursor-pointer';
-   card.innerHTML = `
-     <div><strong>${p.urls && p.urls.length ? p.urls[0] : 'Manual Project'}</strong></div>
-     <div class="text-xs text-gray-600">Files: ${p.files.length}, Code: ${p.code ? 'Yes' : 'No'}</div>
-   `;
-   card.addEventListener('click', () => inspectProject(p.id));
-   projectsList.appendChild(card);
- });
+  projectsList.innerHTML = '';
+  if (projects.length === 0) {
+    projectsList.innerHTML = '<p class="text-gray-500 text-center">No projects added yet.</p>';
+    return;
+  }
+  projects.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'project-card cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-md';
+    card.innerHTML = `
+      <div><strong>${p.urls && p.urls.length ? p.urls[0] : 'Manual Project'}</strong></div>
+      <div class="text-xs text-gray-600">Files: ${p.files.length}, Code: ${p.code ? 'Yes' : 'No'}</div>
+    `;
+    card.addEventListener('click', () => inspectProject(p.id));
+    projectsList.appendChild(card);
+  });
 }
 
 function populateProjectSelect() {
- const sel = document.getElementById('projectSelect');
- sel.innerHTML = '<option value="">None</option>';
- projects.forEach(p => {
-   const opt = document.createElement('option');
-   opt.value = p.id;
-   opt.textContent = p.urls && p.urls.length ? p.urls[0] : `Project ${p.id}`;
-   sel.appendChild(opt);
- });
+  const sel = document.getElementById('projectSelect');
+  sel.innerHTML = '<option value="">None</option>';
+  projects.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.urls && p.urls.length ? p.urls[0] : `Project ${p.id}`;
+    sel.appendChild(opt);
+  });
 }
 
 document.getElementById('addProject').addEventListener('click', async () => {
- const urlsText = document.getElementById('projectUrls').value.trim();
- const urls = urlsText ? urlsText.split('\n').map(u => u.trim()).filter(Boolean) : [];
- const manualCode = document.getElementById('manualCode').value.trim();
- const filesInput = document.getElementById('projectFile').files;
- const files = [];
+  const urlsText = document.getElementById('projectUrls').value.trim();
+  const urls = urlsText ? urlsText.split('\n').map(u => u.trim()).filter(Boolean) : [];
+  const manualCode = document.getElementById('manualCode').value.trim();
+  const filesInput = document.getElementById('projectFile').files;
+  const files = [];
 
- for (let file of filesInput) {
-   if (file.name.endsWith('.zip')) {
-     try {
-       const zip = await JSZip.loadAsync(file);
-       for (let fname in zip.files) {
-         const content = await zip.files[fname].async('string');
-         files.push({ name: fname, content });
-       }
-     } catch (err) {
-       alert('Error reading ZIP file.');
-       return;
-     }
-   } else {
-     try {
-       const text = await file.text();
-       files.push({ name: file.name, content: text });
-     } catch (err) {
-       alert('Error reading file.');
-       return;
-     }
-   }
- }
+  for (let file of filesInput) {
+    if (file.name.endsWith('.zip')) {
+      try {
+        const zip = await JSZip.loadAsync(file);
+        for (let fname in zip.files) {
+          const content = await zip.files[fname].async('string');
+          files.push({ name: fname, content });
+        }
+      } catch (err) {
+        alert('Error reading ZIP file.');
+        return;
+      }
+    } else {
+      try {
+        const text = await file.text();
+        files.push({ name: file.name, content: text });
+      } catch (err) {
+        alert('Error reading file.');
+        return;
+      }
+    }
+  }
 
- const project = {
-   id: Date.now().toString(),
-   urls,
-   code: manualCode,
-   files,
-   enriched: null,
-   createdAt: new Date().toISOString()
- };
+  const project = {
+    id: Date.now().toString(),
+    urls,
+    code: manualCode,
+    files,
+    enriched: null,
+    createdAt: new Date().toISOString()
+  };
 
- projects.push(project);
- localStorage.setItem('aiProjects', JSON.stringify(projects));
- updateProjectsUI();
- populateProjectSelect();
- alert('Project added!');
+  projects.push(project);
+  localStorage.setItem('aiProjects', JSON.stringify(projects));
+  updateProjectsUI();
+  populateProjectSelect();
+  alert('Project added!');
 });
 
 function inspectProject(id) {
- const p = projects.find(proj => proj.id === id);
- if (!p) return;
+  const p = projects.find(proj => proj.id === id);
+  if (!p) return;
 
- document.getElementById('inspectProjectId').value = p.id;
- document.getElementById('inspectUrls').textContent = p.urls.join(', ') || '—';
- document.getElementById('inspectFiles').textContent = p.files.map(f => f.name).join(', ') || '—';
- document.getElementById('inspectCode').textContent = p.code || '—';
+  document.getElementById('inspectProjectId').value = p.id;
+  document.getElementById('inspectUrls').textContent = p.urls.join(', ') || '—';
+  document.getElementById('inspectFiles').textContent = p.files.map(f => f.name).join(', ') || '—';
+  document.getElementById('inspectCode').textContent = p.code || '—';
 
- // Reset checkboxes
- ['taskSummarize', 'taskTechnical', 'taskCategorize', 'taskAppJson'].forEach(id => {
-   document.getElementById(id).checked = false;
- });
+  document.getElementById('inspectionForm').classList.remove('hidden');
+  document.getElementById('artifactsList').classList.add('hidden');
+  document.getElementById('artifactsList').innerHTML = '';
 
- document.getElementById('projectDetailModal').style.display = 'flex';
+  ['taskSummarize', 'taskTechnical', 'taskCategorize', 'taskAppJson'].forEach(id => {
+    document.getElementById(id).checked = false;
+  });
+
+  document.getElementById('projectDetailModal').style.display = 'flex';
 }
 
-document.getElementById('submitProjectAnalysis').addEventListener('click', () => {
- const id = document.getElementById('inspectProjectId').value;
- const project = projects.find(p => p.id === id);
- if (!project) return;
+async function generateArtifactContent(project, tasks) {
+  const apiKey = localStorage.getItem('groqApiKey');
+  if (!apiKey) {
+    alert('Please set your Groq API key in Settings to generate AI insights.');
+    return {};
+  }
 
- const tasks = {
-   summarize: document.getElementById('taskSummarize').checked,
-   technical: document.getElementById('taskTechnical').checked,
-   categorize: document.getElementById('taskCategorize').checked,
-   appJson: document.getElementById('taskAppJson').checked
- };
+  let context = '';
+  if (project.urls.length) context += `URLs: ${project.urls.join(', ')}\n`;
+  if (project.code) context += `Code:\n${project.code}\n`;
+  project.files.forEach(f => {
+    context += `File: ${f.name}\n${f.content.substring(0, 1000)}...\n`;
+  });
 
- project.enriched = { tasks, analyzedAt: new Date().toISOString() };
- localStorage.setItem('aiProjects', JSON.stringify(projects));
- alert('Project analysis tasks saved!');
- document.getElementById('projectDetailModal').style.display = 'none';
+  const model = localStorage.getItem('groqModel') || 'llama-3.3-70b-versatile';
+  const results = {};
+  const promises = [];
+
+  if (tasks.summarize) {
+    promises.push(
+      axios.post('https://api.groq.com/openai/v1/chat/completions', {
+        model,
+        messages: [{ role: 'user', content: `Summarize this project in 2-3 sentences:\n\n${context}` }],
+        temperature: 0.7,
+        max_tokens: 300
+      }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
+      .then(res => {
+        results.summary = res.data.choices?.[0]?.message?.content || 'Summary not available.';
+      })
+    );
+  }
+
+  if (tasks.technical) {
+    promises.push(
+      axios.post('https://api.groq.com/openai/v1/chat/completions', {
+        model,
+        messages: [{ role: 'user', content: `Provide a technical description of this project (stack, architecture, key features):\n\n${context}` }],
+        temperature: 0.5,
+        max_tokens: 500
+      }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
+      .then(res => {
+        results.technical = res.data.choices?.[0]?.message?.content || 'Technical description not available.';
+      })
+    );
+  }
+
+  if (tasks.categorize) {
+    promises.push(
+      axios.post('https://api.groq.com/openai/v1/chat/completions', {
+        model,
+        messages: [{ role: 'user', content: `Categorize this project. Return only a single category name (e.g., "E-commerce", "Productivity", "Social Media"):\n\n${context}` }],
+        temperature: 0.3,
+        max_tokens: 50
+      }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
+      .then(res => {
+        results.category = res.data.choices?.[0]?.message?.content?.trim() || 'Uncategorized';
+      })
+    );
+  }
+
+  if (tasks.appJson) {
+    promises.push(
+      axios.post('https://api.groq.com/openai/v1/chat/completions', {
+        model,
+        messages: [{ role: 'user', content: `Generate a valid JSON object with these fields: title (string), description (string), url (string, use first URL or empty), category (string), tags (array of 3-5 strings), technologies (array of strings). Use this context:\n\n${context}` }],
+        temperature: 0.6,
+        max_tokens: 500
+      }, { headers: { 'Authorization': `Bearer ${apiKey}` } })
+      .then(res => {
+        let jsonStr = res.data.choices?.[0]?.message?.content || '{}';
+        const match = jsonStr.match(/```(?:json)?\s*({[\s\S]*?})\s*```/);
+        if (match) jsonStr = match[1];
+        try {
+          results.appJson = JSON.parse(jsonStr);
+        } catch (e) {
+          results.appJson = { error: 'Failed to parse JSON', raw: jsonStr };
+        }
+      })
+    );
+  }
+
+  await Promise.all(promises);
+  return results;
+}
+
+document.getElementById('submitProjectAnalysis').addEventListener('click', async () => {
+  const id = document.getElementById('inspectProjectId').value;
+  const project = projects.find(p => p.id === id);
+  if (!project) return;
+
+  const tasks = {
+    summarize: document.getElementById('taskSummarize').checked,
+    technical: document.getElementById('taskTechnical').checked,
+    categorize: document.getElementById('taskCategorize').checked,
+    appJson: document.getElementById('taskAppJson').checked
+  };
+
+  if (!Object.values(tasks).some(Boolean)) {
+    alert('Please select at least one task.');
+    return;
+  }
+
+  document.getElementById('submitProjectAnalysis').textContent = 'Generating...';
+  document.getElementById('submitProjectAnalysis').disabled = true;
+
+  const results = await generateArtifactContent(project, tasks);
+  project.enriched = { tasks, ...results, analyzedAt: new Date().toISOString() };
+  localStorage.setItem('aiProjects', JSON.stringify(projects));
+
+  renderArtifacts(project.enriched);
+
+  document.getElementById('submitProjectAnalysis').textContent = 'Submit';
+  document.getElementById('submitProjectAnalysis').disabled = false;
 });
 
+function renderArtifacts(enriched) {
+  const list = document.getElementById('artifactsList');
+  const form = document.getElementById('inspectionForm');
+  form.classList.add('hidden');
+  list.classList.remove('hidden');
+  list.innerHTML = '<h4 class="font-bold">Generated Artifacts</h4>';
+
+  if (enriched.summary) {
+    addArtifactItem('Summary', 'summary.md', enriched.summary, (val) => {
+      enriched.summary = val;
+      saveEnriched();
+    });
+  }
+
+  if (enriched.technical) {
+    addArtifactItem('Technical Description', 'technical.md', enriched.technical, (val) => {
+      enriched.technical = val;
+      saveEnriched();
+    });
+  }
+
+  if (enriched.category) {
+    addArtifactItem('Category', 'category.txt', enriched.category, (val) => {
+      enriched.category = val;
+      saveEnriched();
+    });
+  }
+
+  if (enriched.appJson) {
+    const jsonStr = typeof enriched.appJson === 'string' ? enriched.appJson : JSON.stringify(enriched.appJson, null, 2);
+    addArtifactItem('App Metadata', 'app.json', jsonStr, (val) => {
+      try {
+        enriched.appJson = JSON.parse(val);
+        saveEnriched();
+      } catch (e) {
+        alert('Invalid JSON. Please fix syntax.');
+      }
+    });
+  }
+}
+
+function addArtifactItem(title, filename, content, onSave) {
+  const list = document.getElementById('artifactsList');
+  const item = document.createElement('div');
+  item.className = 'artifact-item';
+  item.innerHTML = `
+    <div><strong>${title}</strong> <code>${filename}</code></div>
+    <div class="artifact-actions">
+      <button class="edit-btn bg-gray-200 px-2 py-1 text-xs rounded">Edit</button>
+    </div>
+    <pre class="artifact-content hidden" contenteditable="true">${content}</pre>
+  `;
+  list.appendChild(item);
+
+  const editBtn = item.querySelector('.edit-btn');
+  const contentEl = item.querySelector('.artifact-content');
+
+  editBtn.addEventListener('click', () => {
+    if (contentEl.classList.contains('hidden')) {
+      contentEl.classList.remove('hidden');
+      editBtn.textContent = 'Save';
+    } else {
+      const newValue = contentEl.textContent;
+      onSave(newValue);
+      contentEl.classList.add('hidden');
+      editBtn.textContent = 'Edit';
+    }
+  });
+}
+
+function saveEnriched() {
+  localStorage.setItem('aiProjects', JSON.stringify(projects));
+}
+
 document.getElementById('closeProjectModal').addEventListener('click', () => {
- document.getElementById('projectDetailModal').style.display = 'none';
+  document.getElementById('projectDetailModal').style.display = 'none';
 });
 
 /* ---------- Chat System ---------- */
@@ -888,259 +967,260 @@ let chatStartTime = null;
 let tokenCount = 0;
 
 function loadChatHistory() {
- const saved = localStorage.getItem('aiChatHistory');
- if (saved) chatHistory = JSON.parse(saved);
- renderChatHistory();
+  const saved = localStorage.getItem('aiChatHistory');
+  if (saved) chatHistory = JSON.parse(saved);
+  renderChatHistory();
 }
 
 function initializeNewChat() {
- const newChat = {
-   id: Date.now().toString(),
-   title: 'New Chat',
-   messages: [],
-   createdAt: new Date().toISOString(),
-   updatedAt: new Date().toISOString(),
-   tokenCount: 0,
-   duration: 0
- };
- chatHistory.push(newChat);
- currentChatId = newChat.id;
- chatStartTime = new Date();
- tokenCount = 0;
- document.getElementById('chatBox').innerHTML = '';
- document.getElementById('chatInput').value = '';
- document.getElementById('chatStats').classList.add('hidden');
- localStorage.setItem('aiChatHistory', JSON.stringify(chatHistory));
- renderChatHistory();
- updateChatStats();
+  const newChat = {
+    id: Date.now().toString(),
+    title: 'New Chat',
+    messages: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    tokenCount: 0,
+    duration: 0
+  };
+  chatHistory.push(newChat);
+  currentChatId = newChat.id;
+  chatStartTime = new Date();
+  tokenCount = 0;
+  document.getElementById('chatBox').innerHTML = '';
+  document.getElementById('chatInput').value = '';
+  document.getElementById('chatStats').classList.add('hidden');
+  localStorage.setItem('aiChatHistory', JSON.stringify(chatHistory));
+  renderChatHistory();
+  updateChatStats();
 }
 
 function renderChatHistory() {
- const list = document.getElementById('chatHistoryList');
- list.innerHTML = '';
- if (chatHistory.length === 0) {
-   list.innerHTML = '<p class="text-gray-500 text-center py-2">No chats yet.</p>';
-   return;
- }
- chatHistory.slice().reverse().forEach(chat => {
-   const messageCount = chat.messages.length;
-   const duration = chat.duration ? formatDuration(chat.duration) : '0s';
-   const lastMsg = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1].content.substring(0, 40) + '...' : 'No messages';
+  const list = document.getElementById('chatHistoryList');
+  list.innerHTML = '';
+  if (chatHistory.length === 0) {
+    list.innerHTML = '<p class="text-gray-500 text-center py-2">No chats yet.</p>';
+    return;
+  }
+  chatHistory.slice().reverse().forEach(chat => {
+    const messageCount = chat.messages.length;
+    const duration = chat.duration ? formatDuration(chat.duration) : '0s';
+    const lastMsg = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1].content.substring(0, 40) + '...' : 'No messages';
 
-   const item = document.createElement('div');
-   item.className = `chat-history-item ${chat.id === currentChatId ? 'active' : ''}`;
-   item.setAttribute('data-id', chat.id);
-   item.innerHTML = `
-     <div class="font-medium">${chat.title}</div>
-     <div class="text-xs text-gray-600">Msgs: ${messageCount} • ${duration}</div>
-     <div class="text-xs mt-1">${lastMsg}</div>
-   `;
-   item.addEventListener('click', () => loadChat(chat.id));
-   list.appendChild(item);
- });
+    const item = document.createElement('div');
+    item.className = `chat-history-item ${chat.id === currentChatId ? 'active' : ''}`;
+    item.setAttribute('data-id', chat.id);
+    item.innerHTML = `
+      <div class="font-medium">${chat.title}</div>
+      <div class="text-xs text-gray-600">Msgs: ${messageCount} • ${duration}</div>
+      <div class="text-xs mt-1">${lastMsg}</div>
+    `;
+    item.addEventListener('click', () => loadChat(chat.id));
+    list.appendChild(item);
+  });
 }
 
 function loadChat(id) {
- const chat = chatHistory.find(c => c.id === id);
- if (!chat) return;
+  const chat = chatHistory.find(c => c.id === id);
+  if (!chat) return;
 
- currentChatId = id;
- chatStartTime = new Date(chat.createdAt);
- tokenCount = chat.tokenCount;
+  currentChatId = id;
+  chatStartTime = new Date(chat.createdAt);
+  tokenCount = chat.tokenCount;
 
- document.getElementById('chatBox').innerHTML = '';
- chat.messages.forEach(msg => appendChatMessage(msg.sender, msg.content, false));
- renderChatHistory();
- updateChatStats();
+  document.getElementById('chatBox').innerHTML = '';
+  chat.messages.forEach(msg => appendChatMessage(msg.sender, msg.content, false));
+  renderChatHistory();
+  updateChatStats();
 
- // Update quick actions based on role
- const roleId = chat.roleId || 'general';
- const expert = experts.find(e => e.id === roleId) || experts[0];
- updateQuickActions(expert.quickActions);
+  const roleId = chat.roleId || 'developer';
+  const expert = experts.find(e => e.id === roleId) || experts[0];
+  updateQuickActions(expert.quickActions);
 }
 
 function appendChatMessage(sender, content, save = true) {
- const div = document.createElement('div');
- div.className = `chat-message ${sender === 'User' ? 'user-message' : 'ai-message'}`;
- div.innerHTML = `<strong>${sender}:</strong> ${content}`;
- document.getElementById('chatBox').appendChild(div);
- document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
+  const div = document.createElement('div');
+  div.className = `chat-message ${sender === 'User' ? 'user-message' : 'ai-message'} animate-fade-in-up`;
+  div.innerHTML = `<strong>${sender}:</strong> ${content}`;
+  document.getElementById('chatBox').appendChild(div);
+  document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
 
- if (save) {
-   const chat = chatHistory.find(c => c.id === currentChatId);
-   chat.messages.push({ sender, content, timestamp: new Date().toISOString() });
-   if (chat.messages.length === 1) chat.title = content.substring(0, 30) + (content.length > 30 ? '...' : '');
-   chat.updatedAt = new Date().toISOString();
-   chat.tokenCount = tokenCount;
-   if (chatStartTime) {
-     const now = new Date();
-     chat.duration = Math.floor((now - chatStartTime) / 1000);
-   }
-   localStorage.setItem('aiChatHistory', JSON.stringify(chatHistory));
-   updateChatStats();
- }
+  if (save) {
+    const chat = chatHistory.find(c => c.id === currentChatId);
+    chat.messages.push({ sender, content, timestamp: new Date().toISOString() });
+    if (chat.messages.length === 1) chat.title = content.substring(0, 30) + (content.length > 30 ? '...' : '');
+    chat.updatedAt = new Date().toISOString();
+    chat.tokenCount = tokenCount;
+    if (chatStartTime) {
+      const now = new Date();
+      chat.duration = Math.floor((now - chatStartTime) / 1000);
+    }
+    localStorage.setItem('aiChatHistory', JSON.stringify(chatHistory));
+    updateChatStats();
+  }
 }
 
 function updateChatStats() {
- const chat = chatHistory.find(c => c.id === currentChatId);
- if (!chat) {
-   document.getElementById('chatStats').classList.add('hidden');
-   return;
- }
- document.getElementById('messageCount').textContent = chat.messages.length;
- document.getElementById('tokenCount').textContent = chat.tokenCount;
- document.getElementById('duration').textContent = formatDuration(chat.duration);
- document.getElementById('chatStats').classList.remove('hidden');
+  const chat = chatHistory.find(c => c.id === currentChatId);
+  if (!chat) {
+    document.getElementById('chatStats').classList.add('hidden');
+    return;
+  }
+  document.getElementById('messageCount').textContent = chat.messages.length;
+  document.getElementById('tokenCount').textContent = chat.tokenCount;
+  document.getElementById('duration').textContent = formatDuration(chat.duration);
+  document.getElementById('chatStats').classList.remove('hidden');
 }
 
 function formatDuration(seconds) {
- if (seconds < 60) return `${seconds}s`;
- const m = Math.floor(seconds / 60);
- const s = seconds % 60;
- return `${m}m ${s}s`;
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s}s`;
 }
 
 function updateQuickActions(actions) {
- const container = document.getElementById('quickActions');
- container.innerHTML = '';
- actions.forEach(action => {
-   const btn = document.createElement('button');
-   btn.className = 'action-button';
-   btn.textContent = action;
-   btn.addEventListener('click', () => {
-     document.getElementById('chatInput').value = action;
-     document.getElementById('sendChat').click();
-   });
-   container.appendChild(btn);
- });
+  const container = document.getElementById('quickActions');
+  container.innerHTML = '';
+  actions.forEach(action => {
+    const btn = document.createElement('button');
+    btn.className = 'action-button';
+    btn.textContent = action;
+    btn.addEventListener('click', () => {
+      document.getElementById('chatInput').value = action;
+      document.getElementById('sendChat').click();
+    });
+    container.appendChild(btn);
+  });
 }
 
 document.getElementById('newChatBtn').addEventListener('click', initializeNewChat);
 document.getElementById('clearChat').addEventListener('click', () => {
- if (confirm('Clear this chat?')) {
-   const chat = chatHistory.find(c => c.id === currentChatId);
-   chat.messages = [];
-   chat.tokenCount = 0;
-   chat.duration = 0;
-   document.getElementById('chatBox').innerHTML = '';
-   updateChatStats();
-   localStorage.setItem('aiChatHistory', JSON.stringify(chatHistory));
- }
+  if (confirm('Clear this chat?')) {
+    const chat = chatHistory.find(c => c.id === currentChatId);
+    chat.messages = [];
+    chat.tokenCount = 0;
+    chat.duration = 0;
+    document.getElementById('chatBox').innerHTML = '';
+    updateChatStats();
+    localStorage.setItem('aiChatHistory', JSON.stringify(chatHistory));
+  }
 });
 
 document.getElementById('sendChat').addEventListener('click', async () => {
- const input = document.getElementById('chatInput');
- const message = input.value.trim();
- if (!message) return;
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  if (!message) return;
 
- appendChatMessage('User', message);
- input.value = '';
+  appendChatMessage('User', message);
+  input.value = '';
 
- const apiKey = localStorage.getItem('groqApiKey');
- if (!apiKey) {
-   appendChatMessage('AI', 'Please set your Groq API key in Settings.');
-   return;
- }
+  const apiKey = localStorage.getItem('groqApiKey');
+  if (!apiKey) {
+    appendChatMessage('AI', 'Please set your Groq API key in Settings.');
+    return;
+  }
 
- const roleId = document.getElementById('roleSelect').value;
- const expert = experts.find(e => e.id === roleId) || experts[0];
- const projectId = document.getElementById('projectSelect').value;
- let projectContext = '';
+  const roleId = document.getElementById('roleSelect').value;
+  const expert = experts.find(e => e.id === roleId) || experts[0];
+  const projectId = document.getElementById('projectSelect').value;
+  let projectContext = '';
 
- if (projectId) {
-   const proj = projects.find(p => p.id === projectId);
-   if (proj) {
-     projectContext += `Project URLs: ${proj.urls.join(', ')}\n`;
-     if (proj.code) projectContext += `Code:\n${proj.code}\n`;
-     proj.files.forEach(f => {
-       projectContext += `File: ${f.name}\n${f.content.substring(0, 500)}...\n`;
-     });
-     if (proj.enriched) {
-       projectContext += `\nEnriched Data:\n${JSON.stringify(proj.enriched, null, 2)}\n`;
-     }
-   }
- }
+  if (projectId) {
+    const proj = projects.find(p => p.id === projectId);
+    if (proj) {
+      projectContext += `Project URLs: ${proj.urls.join(', ')}\n`;
+      if (proj.code) projectContext += `Code:\n${proj.code}\n`;
+      proj.files.forEach(f => {
+        projectContext += `File: ${f.name}\n${f.content.substring(0, 500)}...\n`;
+      });
+      if (proj.enriched) {
+        projectContext += `\nEnriched Data:\n${JSON.stringify(proj.enriched, null, 2)}\n`;
+      }
+    }
+  }
 
- const fullPrompt = `${expert.prompt}\n\nContext:\n${projectContext}\nUser: ${message}\nAI:`;
+  const fullPrompt = expert.prompt
+    .replace('{{CONTEXT}}', projectContext || 'No additional context provided.')
+    .replace('{{USER_QUERY}}', message);
 
- try {
-   const model = localStorage.getItem('groqModel') || 'llama-3.3-70b-versatile';
-   const res = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-     model,
-     messages: [{ role: 'user', content: fullPrompt }],
-     temperature: expert.temperature,
-     max_tokens: expert.maxTokens
-   }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+  try {
+    const model = localStorage.getItem('groqModel') || 'llama-3.3-70b-versatile';
+    const res = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+      model,
+      messages: [{ role: 'user', content: fullPrompt }],
+      temperature: expert.temperature,
+      max_tokens: expert.maxTokens
+    }, { headers: { 'Authorization': `Bearer ${apiKey}` } });
 
-   const aiMsg = res.data.choices?.[0]?.message?.content || 'No response.';
-   const tokens = res.data.usage?.total_tokens || 0;
-   tokenCount += tokens;
+    const aiMsg = res.data.choices?.[0]?.message?.content || 'No response.';
+    const tokens = res.data.usage?.total_tokens || 0;
+    tokenCount += tokens;
 
-   appendChatMessage('AI', aiMsg);
- } catch (err) {
-   console.error(err);
-   appendChatMessage('AI', `Error: ${err.message || 'Failed to contact AI'}`);
- }
+    appendChatMessage('AI', aiMsg);
+  } catch (err) {
+    console.error(err);
+    appendChatMessage('AI', `Error: ${err.message || 'Failed to contact AI'}`);
+  }
 });
 
 /* ---------- Export ---------- */
 document.getElementById('exportChatBtn').addEventListener('click', () => {
- const chat = chatHistory.find(c => c.id === currentChatId);
- if (!chat) {
-   alert('No chat to export.');
-   return;
- }
- document.getElementById('exportFilename').value = `chat_${chat.title.replace(/\s+/g, '_')}`;
- document.getElementById('exportModal').style.display = 'flex';
+  const chat = chatHistory.find(c => c.id === currentChatId);
+  if (!chat) {
+    alert('No chat to export.');
+    return;
+  }
+  document.getElementById('exportFilename').value = `chat_${chat.title.replace(/\s+/g, '_')}`;
+  document.getElementById('exportModal').style.display = 'flex';
 });
 
 document.getElementById('confirmExport').addEventListener('click', () => {
- const format = document.getElementById('exportFormat').value;
- const filename = document.getElementById('exportFilename').value || 'chat_export';
- const chat = chatHistory.find(c => c.id === currentChatId);
- if (!chat) return;
+  const format = document.getElementById('exportFormat').value;
+  const filename = document.getElementById('exportFilename').value || 'chat_export';
+  const chat = chatHistory.find(c => c.id === currentChatId);
+  if (!chat) return;
 
- let content = '', mimeType = '';
- switch (format) {
-   case 'txt':
-     content = `Chat: ${chat.title}\nCreated: ${new Date(chat.createdAt).toLocaleString()}\n\n`;
-     chat.messages.forEach(msg => {
-       content += `${msg.sender}: ${msg.content}\n\n`;
-     });
-     mimeType = 'text/plain';
-     break;
-   case 'json':
-     content = JSON.stringify(chat, null, 2);
-     mimeType = 'application/json';
-     break;
-   case 'html':
-     content = `
-       <html><head><title>${chat.title}</title><style>body{font-family:sans-serif;margin:20px;}.msg{margin:10px 0;padding:10px;border-radius:5px;}.user{background:#e0f2fe;}.ai{background:#f3f4f6;}</style></head>
-       <body><h1>${chat.title}</h1><p>Created: ${new Date(chat.createdAt).toLocaleString()}</p>
-       ${chat.messages.map(msg => `<div class="msg ${msg.sender === 'User' ? 'user' : 'ai'}"><strong>${msg.sender}:</strong> ${msg.content.replace(/\n/g, '<br>')}</div>`).join('')}
-       </body></html>
-     `;
-     mimeType = 'text/html';
-     break;
- }
+  let content = '', mimeType = '';
+  switch (format) {
+    case 'txt':
+      content = `Chat: ${chat.title}\nCreated: ${new Date(chat.createdAt).toLocaleString()}\n\n`;
+      chat.messages.forEach(msg => {
+        content += `${msg.sender}: ${msg.content}\n\n`;
+      });
+      mimeType = 'text/plain';
+      break;
+    case 'json':
+      content = JSON.stringify(chat, null, 2);
+      mimeType = 'application/json';
+      break;
+    case 'html':
+      content = `
+        <html><head><title>${chat.title}</title><style>body{font-family:sans-serif;margin:20px;}.msg{margin:10px 0;padding:10px;border-radius:5px;}.user{background:#e0f2fe;}.ai{background:#f3f4f6;}</style></head>
+        <body><h1>${chat.title}</h1><p>Created: ${new Date(chat.createdAt).toLocaleString()}</p>
+        ${chat.messages.map(msg => `<div class="msg ${msg.sender === 'User' ? 'user' : 'ai'}"><strong>${msg.sender}:</strong> ${msg.content.replace(/\n/g, '<br>')}</div>`).join('')}
+        </body></html>
+      `;
+      mimeType = 'text/html';
+      break;
+  }
 
- const blob = new Blob([content], { type: mimeType });
- const url = URL.createObjectURL(blob);
- const a = document.createElement('a');
- a.href = url;
- a.download = `${filename}.${format}`;
- document.body.appendChild(a);
- a.click();
- document.body.removeChild(a);
- URL.revokeObjectURL(url);
- document.getElementById('exportModal').style.display = 'none';
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${filename}.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  document.getElementById('exportModal').style.display = 'none';
 });
 
 document.getElementById('cancelExport').addEventListener('click', () => {
- document.getElementById('exportModal').style.display = 'none';
+  document.getElementById('exportModal').style.display = 'none';
 });
 document.getElementById('closeExportModal').addEventListener('click', () => {
- document.getElementById('exportModal').style.display = 'none';
+  document.getElementById('exportModal').style.display = 'none';
 });
 
 /* ---------- Init ---------- */
@@ -1150,11 +1230,10 @@ loadProjects();
 loadChatHistory();
 initializeNewChat();
 
-// Sync quick actions when role changes
 document.getElementById('roleSelect').addEventListener('change', () => {
- const roleId = document.getElementById('roleSelect').value;
- const expert = experts.find(e => e.id === roleId) || experts[0];
- updateQuickActions(expert.quickActions);
+  const roleId = document.getElementById('roleSelect').value;
+  const expert = experts.find(e => e.id === roleId) || experts[0];
+  updateQuickActions(expert.quickActions);
 });
 </script>
 
