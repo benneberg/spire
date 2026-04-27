@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Nexus AI Assistant</title>
+  
+  <!-- Tailwind & Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+          colors: {
+            dark: '#0B0F19',
+            surface: '#151925',
+            primary: '#6366f1', // Indigo
+            accent: '#06b6d4',  // Cyan
+            glass: 'rgba(21, 25, 37, 0.7)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* --- Core Animations --- */
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0px); }
+    }
+
+    body {
+      background-color: #0B0F19;
+      color: #e2e8f0;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* --- Background Effects --- */
+    .bg-grid {
+      background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 30px 30px;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: -2;
+      pointer-events: none;
+    }
+
+    .ambient-orb {
+      position: fixed;
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.15;
+      z-index: -1;
+      animation: float 10s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .orb-1 { background: #6366f1; top: -50px; left: -50px; }
+    .orb-2 { background: #06b6d4; bottom: -50px; right: -50px; animation-delay: 2s; }
+
+    /* --- Glassmorphism Components --- */
+    .glass-panel {
+      background: rgba(21, 25, 37, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .nav-item.active {
+      color: #6366f1;
+      text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+    }
+    .nav-item.active svg { stroke-width: 2.5px; }
+
+    /* --- Scrollbar --- */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+
+    /* --- Utilities --- */
+    .animate-enter { animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .hidden { display: none !important; }
+    
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .chat-bubble-user {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      border-bottom-right-radius: 2px;
+    }
+    .chat-bubble-ai {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-bottom-left-radius: 2px;
+    }
+
+    /* --- Inputs --- */
+    input, select, textarea {
+      background: rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: white;
+      transition: all 0.3s ease;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
+    
+    /* Fix for Select Arrow */
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 0.5rem center;
+      background-repeat: no-repeat;
+      background-size: 1.5em 1.5em;
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen text-sm selection:bg-indigo-500 selection:text-white">
+
+  <!-- Ambient Background -->
+  <div class="bg-grid"></div>
+  <div class="ambient-orb orb-1"></div>
+  <div class="ambient-orb orb-2"></div>
+
+  <!-- Top Header -->
+  <header class="fixed top-0 w-full z-40 glass-panel border-b-0 rounded-b-2xl px-4 py-3 flex justify-between items-center animate-enter">
+    <div class="flex items-center gap-3">
+      <div class="relative">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        </div>
+        <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-dark"></span>
+      </div>
+      <div>
+        <h1 class="font-bold tracking-wide text-base leading-none">NEXUS<span class="text-indigo-400 font-light">AI</span></h1>
+        <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Runtime v3.0</p>
+      </div>
+    </div>
+    
+    <!-- System Status Pill -->
+    <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-black/30 border border-white/5">
+      <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
+      <span class="text-xs font-mono text-emerald-400">ONLINE</span>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <!-- Added pb-24 to ensure content isn't hidden behind bottom nav -->
+  <main class="flex-1 pt-20 pb-24 px-4 overflow-y-auto scroll-smooth relative z-10" id="mainContainer">
+    
+    <!-- VIEW: CHAT (Default) -->
+    <section id="view-chat" class="tab-view flex flex-col h-full animate-enter">
+      
+      <!-- Role & Project Selectors -->
+      <div class="grid grid-cols-2 gap-2 mb-4">
+        <div class="glass-panel p-2 rounded-xl relative group">
+          <label class="text-[10px] text-gray-400 uppercase font-bold ml-1">Expert Role</label>
+          <select id="roleSelect" class="w-full bg-transparent text-white appearance-none pt-1 pl-1 focus:ring-0 border-none pr-8">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+        
+        <div class="glass-panel p-2 rounded-xl relative">
+          <label class="text-[10px] text-gray-400 uppercase font-bold ml-1">Context</label>
+          <select id="projectSelect" class="w-full bg-transparent text-white appearance-none pt-1 pl-1 focus:ring-0 border-none pr-8">
+            <option value="">No Context</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Quick Actions Chips -->
+      <div id="quickActions" class="flex gap-2 overflow-x-auto pb-2 mb-2 no-scrollbar">
+        <!-- Injected via JS -->
+      </div>
+
+      <!-- Chat Stream -->
+      <div id="chatBox" class="flex-1 flex flex-col gap-3 pb-4 overflow-y-auto min-h-[400px]">
+        <!-- Messages go here -->
+        <div class="text-center text-gray-500 text-xs mt-10 opacity-50">
+          SYSTEM READY<br>AWAITING INPUT
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="mt-auto pt-2 relative z-50">
+        <div class="glass-panel rounded-2xl p-2 flex items-end gap-2 shadow-lg shadow-indigo-900/20">
+           <button id="newChatBtn" class="p-3 text-gray-400 hover:text-white transition-colors rounded-xl hover:bg-white/5">
+             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+           </button>
+           <textarea id="chatInput" rows="1" class="w-full bg-transparent border-none focus:ring-0 resize-none py-3 text-white placeholder-gray-500" placeholder="Ask Nexus..."></textarea>
+           <button id="sendChat" class="p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all shadow-lg shadow-indigo-600/30 active:scale-95">
+             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+           </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW: PROJECTS -->
+    <section id="view-projects" class="tab-view hidden animate-enter">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold">Projects</h2>
+        <button onclick="document.getElementById('addProjectModal').classList.remove('hidden')" class="bg-white/10 hover:bg-white/20 p-2 rounded-lg transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+        </button>
+      </div>
+
+      <div id="projectsList" class="space-y-3">
+        <!-- Project Cards -->
+      </div>
+    </section>
+
+    <!-- VIEW: SETTINGS / EXPERTS -->
+    <section id="view-settings" class="tab-view hidden animate-enter">
+      <h2 class="text-xl font-bold mb-4">Configuration</h2>
+      
+      <div class="glass-panel rounded-xl p-4 mb-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-white/5 pb-2">
+          <h3 class="font-semibold text-indigo-300">API Connection</h3>
+          <span class="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">Groq</span>
+        </div>
+        <div>
+          <label class="text-xs text-gray-400 block mb-1">API Key</label>
+          <input type="password" id="apiKey" class="w-full rounded-lg p-2.5 text-sm" placeholder="sk-..." />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+           <div>
+             <label class="text-xs text-gray-400 block mb-1">Model</label>
+             <select id="modelSelect" class="w-full rounded-lg p-2.5 text-sm"><option>Loading...</option></select>
+           </div>
+           <div>
+             <label class="text-xs text-gray-400 block mb-1">Temp: <span id="tempValue">0.7</span></label>
+             <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7" class="w-full accent-indigo-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+           </div>
+        </div>
+        <button id="saveSettings" class="w-full bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-lg font-medium transition shadow-lg shadow-indigo-600/20">Save Configuration</button>
+      </div>
+
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-bold text-gray-200">Experts Library</h3>
+        <button id="addExpertBtn" class="text-xs text-indigo-400 font-semibold uppercase tracking-wider">+ New Expert</button>
+      </div>
+      <div id="expertsList" class="space-y-3 pb-10"></div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation Bar -->
+  <!-- Increased Z-Index to 50 to sit above content, but Input has z-50 too -->
+  <nav class="fixed bottom-0 w-full z-40 glass-panel border-t border-white/10 pb-safe">
+    <div class="flex justify-around items-center h-16">
+      <button class="nav-item active flex flex-col items-center gap-1 w-full h-full justify-center text-gray-500 hover:text-indigo-400 transition-all" data-target="view-chat">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+        <span class="text-[10px] font-medium">Chat</span>
+      </button>
+      <button class="nav-item flex flex-col items-center gap-1 w-full h-full justify-center text-gray-500 hover:text-indigo-400 transition-all" data-target="view-projects">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+        <span class="text-[10px] font-medium">Projects</span>
+      </button>
+      <button class="nav-item flex flex-col items-center gap-1 w-full h-full justify-center text-gray-500 hover:text-indigo-400 transition-all" data-target="view-settings">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        <span class="text-[10px] font-medium">Config</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MODALS (Hidden by default) -->
+
+  <!-- Add/Edit Project Modal -->
+  <div id="addProjectModal" class="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-md rounded-2xl p-5 animate-enter border border-white/10">
+      <h3 class="text-lg font-bold mb-4">Ingest Project</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-gray-400">Source URLs (One per line)</label>
+          <textarea id="projectUrls" class="w-full rounded-lg p-2 text-sm h-20" placeholder="https://github.com/..."></textarea>
+        </div>
+        <div>
+          <label class="text-xs text-gray-400">Manual Code Snippet</label>
+          <textarea id="manualCode" class="w-full rounded-lg p-2 text-sm font-mono h-20" placeholder="Paste code..."></textarea>
+        </div>
+        <div class="border border-dashed border-gray-600 rounded-lg p-4 text-center">
+          <input type="file" id="projectFile" multiple class="hidden" />
+          <label for="projectFile" class="cursor-pointer text-indigo-400 text-xs font-semibold hover:text-indigo-300">UPLOAD FILES / ZIP</label>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-5">
+        <button onclick="document.getElementById('addProjectModal').classList.add('hidden')" class="flex-1 py-2.5 rounded-lg bg-gray-700 text-white font-medium">Cancel</button>
+        <button id="addProject" class="flex-1 py-2.5 rounded-lg bg-indigo-600 text-white font-medium shadow-lg shadow-indigo-600/20">Add Project</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expert Modal -->
+  <div id="expertModal" class="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+     <div class="glass-panel w-full max-w-md rounded-2xl p-5 animate-enter border border-white/10 max-h-[90vh] overflow-y-auto">
+       <div class="flex justify-between items-center mb-4">
+         <h3 class="text-lg font-bold" id="expertModalTitle">New Expert</h3>
+         <button id="closeExpertModal" class="text-gray-400">&times;</button>
+       </div>
+       <input type="hidden" id="expertId" />
+       <div class="space-y-3">
+         <input type="text" id="expertName" placeholder="Expert Name (e.g. React Guru)" class="w-full rounded-lg p-2.5" />
+         <input type="text" id="expertDomain" placeholder="Domain (e.g. Frontend Arch)" class="w-full rounded-lg p-2.5" />
+         <textarea id="expertObjectives" placeholder="Key Objectives..." class="w-full rounded-lg p-2.5 h-20"></textarea>
+         
+         <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] text-gray-400">Temperature</label>
+              <input type="range" id="expertTemp" min="0" max="2" step="0.1" value="0.7" class="w-full accent-indigo-500 h-1 bg-gray-700 rounded-lg">
+            </div>
+            <div>
+               <label class="text-[10px] text-gray-400">Max Tokens</label>
+               <input type="number" id="expertMaxTokens" value="1024" class="w-full rounded-lg p-1.5 text-sm">
+            </div>
+         </div>
+         
+         <input type="text" id="expertQuickActions" placeholder="Quick Actions (comma separated)" class="w-full rounded-lg p-2.5" />
+       </div>
+       <div class="flex gap-2 mt-5">
+         <button id="deleteExpertBtn" class="hidden px-4 py-2.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30">Delete</button>
+         <button id="cancelExpert" class="flex-1 py-2.5 rounded-lg bg-gray-700 text-white font-medium">Cancel</button>
+         <button id="saveExpert" class="flex-1 py-2.5 rounded-lg bg-indigo-600 text-white font-medium shadow-lg shadow-indigo-600/20">Save</button>
+       </div>
+     </div>
+  </div>
+
+<script>
+/* -------------------------------------------------------------------------- */
+/*                               LOGIC & STATE                                */
+/* -------------------------------------------------------------------------- */
+
+// --- Tab Switching Logic ---
+const navItems = document.querySelectorAll('.nav-item');
+const views = document.querySelectorAll('.tab-view');
+
+navItems.forEach(item => {
+  item.addEventListener('click', () => {
+    // Update Nav UI
+    navItems.forEach(n => n.classList.remove('active', 'text-indigo-400'));
+    navItems.forEach(n => n.classList.add('text-gray-500'));
+    item.classList.add('active', 'text-indigo-400');
+    item.classList.remove('text-gray-500');
+
+    // Switch View
+    const targetId = item.getAttribute('data-target');
+    views.forEach(v => v.classList.add('hidden'));
+    document.getElementById(targetId).classList.remove('hidden');
+    
+    // Re-trigger animation
+    const view = document.getElementById(targetId);
+    view.classList.remove('animate-enter');
+    void view.offsetWidth; // trigger reflow
+    view.classList.add('animate-enter');
+  });
+});
+
+// --- Prompt Builder ---
+function buildExpertPrompt(role, domain, objectives) {
+  return `You are ${role}, an expert in ${domain}. 
+OBJECTIVE: ${objectives}
+
+GUIDELINES:
+1. Be concise but thorough. Use markdown formatting.
+2. If context is provided, strictly adhere to it.
+3. Do not hallucinate facts.
+4. Provide actionable advice or code snippets where relevant.
+
+CONTEXT:
+{{CONTEXT}}
+
+USER QUERY:
+{{USER_QUERY}}`;
+}
+
+// --- Settings & API ---
+async function fetchModels(apiKey) {
+  if (!apiKey) return;
+  try {
+    const res = await axios.get('https://api.groq.com/openai/v1/models', { headers: { 'Authorization': `Bearer ${apiKey}` } });
+    const models = res.data.data.map(m => m.id).sort();
+    const sel = document.getElementById('modelSelect');
+    sel.innerHTML = '';
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = m;
+      sel.appendChild(opt);
+    });
+  } catch (e) { console.error("Model fetch failed", e); }
+}
+
+function loadSettings() {
+  const k = localStorage.getItem('groqApiKey') || '';
+  const m = localStorage.getItem('groqModel') || '';
+  const t = localStorage.getItem('groqTemp') || '0.7';
+  
+  document.getElementById('apiKey').value = k;
+  document.getElementById('temperature').value = t;
+  document.getElementById('tempValue').innerText = t;
+  
+  if(k) fetchModels(k);
+  if(m) setTimeout(() => {
+     const sel = document.getElementById('modelSelect');
+     if(sel.options.length > 0) sel.value = m;
+  }, 1000); // Wait for models to load
+}
+
+document.getElementById('saveSettings').addEventListener('click', () => {
+  localStorage.setItem('groqApiKey', document.getElementById('apiKey').value);
+  localStorage.setItem('groqModel', document.getElementById('modelSelect').value);
+  localStorage.setItem('groqTemp', document.getElementById('temperature').value);
+  alert('Configuration Saved');
+});
+
+document.getElementById('temperature').addEventListener('input', (e) => {
+  document.getElementById('tempValue').innerText = e.target.value;
+});
+
+// --- Experts System ---
+let experts = [
+  { id: 'dev', name: 'Senior Dev', domain: 'Full Stack Eng', objectives: 'Write clean code, debug issues.', temp: 0.2, tokens: 2048, actions: ['Debug this', 'Refactor', 'Explain logic'] },
+  { id: 'pm', name: 'Product Manager', domain: 'Strategy', objectives: 'Define MVP, user stories.', temp: 0.7, tokens: 1024, actions: ['User Story', 'Prioritize', 'Market Fit'] }
+];
+
+function loadExperts() {
+  const saved = localStorage.getItem('nexus_experts');
+  if(saved) experts = JSON.parse(saved);
+  renderExpertsList();
+  populateRoleSelect();
+}
+
+function renderExpertsList() {
+  const list = document.getElementById('expertsList');
+  list.innerHTML = '';
+  experts.forEach(exp => {
+    const card = document.createElement('div');
+    card.className = 'glass-panel p-3 rounded-xl flex justify-between items-center border-l-4 border-indigo-500';
+    card.innerHTML = `
+      <div>
+        <div class="font-bold text-sm">${exp.name}</div>
+        <div class="text-[10px] text-gray-400">${exp.domain}</div>
+      </div>
+      <button class="text-xs bg-white/5 px-3 py-1 rounded hover:bg-white/10" onclick="openExpertModal('${exp.id}')">Edit</button>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function populateRoleSelect() {
+  const sel = document.getElementById('roleSelect');
+  sel.innerHTML = '';
+  experts.forEach(exp => {
+    const opt = document.createElement('option');
+    opt.value = exp.id; opt.textContent = exp.name;
+    sel.appendChild(opt);
+  });
+  updateQuickActions();
+}
+
+function updateQuickActions() {
+  const roleId = document.getElementById('roleSelect').value;
+  const exp = experts.find(e => e.id === roleId) || experts[0];
+  const container = document.getElementById('quickActions');
+  container.innerHTML = '';
+  
+  if(exp && exp.actions) {
+    exp.actions.forEach(action => {
+      const chip = document.createElement('button');
+      chip.className = 'whitespace-nowrap px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-indigo-300 hover:bg-indigo-500/20 transition';
+      chip.innerText = action;
+      chip.onclick = () => {
+        const input = document.getElementById('chatInput');
+        input.value = action + " ";
+        input.focus();
+      };
+      container.appendChild(chip);
+    });
+  }
+}
+
+document.getElementById('roleSelect').addEventListener('change', updateQuickActions);
+
+// Expert Modal Logic
+function openExpertModal(id = null) {
+  const modal = document.getElementById('expertModal');
+  modal.classList.remove('hidden');
+  const delBtn = document.getElementById('deleteExpertBtn');
+  
+  if(id) {
+    const exp = experts.find(e => e.id === id);
+    document.getElementById('expertId').value = exp.id;
+    document.getElementById('expertName').value = exp.name;
+    document.getElementById('expertDomain').value = exp.domain;
+    document.getElementById('expertObjectives').value = exp.objectives;
+    document.getElementById('expertTemp').value = exp.temp;
+    document.getElementById('expertMaxTokens').value = exp.tokens;
+    document.getElementById('expertQuickActions').value = exp.actions ? exp.actions.join(', ') : '';
+    document.getElementById('expertModalTitle').innerText = 'Edit Expert';
+    delBtn.classList.remove('hidden');
+    delBtn.onclick = () => deleteExpert(id);
+  } else {
+    document.getElementById('expertId').value = '';
+    document.querySelectorAll('#expertModal input, #expertModal textarea').forEach(i => i.value = '');
+    document.getElementById('expertModalTitle').innerText = 'New Expert';
+    delBtn.classList.add('hidden');
+  }
+}
+
+function deleteExpert(id) {
+  if(confirm('Remove this expert?')) {
+    experts = experts.filter(e => e.id !== id);
+    localStorage.setItem('nexus_experts', JSON.stringify(experts));
+    loadExperts();
+    document.getElementById('expertModal').classList.add('hidden');
+  }
+}
+
+document.getElementById('saveExpert').addEventListener('click', () => {
+  const id = document.getElementById('expertId').value || Date.now().toString();
+  const newExp = {
+    id,
+    name: document.getElementById('expertName').value,
+    domain: document.getElementById('expertDomain').value,
+    objectives: document.getElementById('expertObjectives').value,
+    temp: parseFloat(document.getElementById('expertTemp').value),
+    tokens: parseInt(document.getElementById('expertMaxTokens').value),
+    actions: document.getElementById('expertQuickActions').value.split(',').map(s=>s.trim()).filter(Boolean)
+  };
+  
+  const idx = experts.findIndex(e => e.id === id);
+  if(idx >= 0) experts[idx] = newExp; else experts.push(newExp);
+  
+  localStorage.setItem('nexus_experts', JSON.stringify(experts));
+  loadExperts();
+  document.getElementById('expertModal').classList.add('hidden');
+});
+
+document.getElementById('addExpertBtn').onclick = () => openExpertModal();
+document.getElementById('closeExpertModal').onclick = document.getElementById('cancelExpert').onclick = () => document.getElementById('expertModal').classList.add('hidden');
+
+
+// --- Projects System ---
+let projects = [];
+function loadProjects() {
+  const saved = localStorage.getItem('nexus_projects');
+  if(saved) projects = JSON.parse(saved);
+  renderProjects();
+  populateProjectSelect();
+}
+
+function renderProjects() {
+  const list = document.getElementById('projectsList');
+  list.innerHTML = '';
+  if(projects.length === 0) list.innerHTML = '<div class="text-center text-gray-500 py-10 text-xs">NO ACTIVE PROJECTS</div>';
+  
+  projects.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'glass-panel p-4 rounded-xl relative overflow-hidden group';
+    div.innerHTML = `
+      <div class="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition">
+        <button class="text-xs text-red-400 bg-black/50 px-2 py-1 rounded" onclick="deleteProject('${p.id}')">Delete</button>
+      </div>
+      <div class="flex items-center gap-3 mb-2">
+        <div class="w-8 h-8 rounded bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+        </div>
+        <div>
+          <div class="font-bold text-sm truncate w-48">${p.urls[0] || 'Manual Upload'}</div>
+          <div class="text-[10px] text-gray-400">${p.files.length} Files • ${p.code ? 'Code Attached' : 'No Code'}</div>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-2">
+         <button class="text-[10px] bg-white/5 px-2 py-1 rounded hover:bg-white/10" onclick="inspectProject('${p.id}')">Inspect</button>
+         <button class="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded hover:bg-indigo-500/30" onclick="useAsContext('${p.id}')">Use as Context</button>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function populateProjectSelect() {
+  const sel = document.getElementById('projectSelect');
+  // Keep first option
+  sel.innerHTML = '<option value="">No Context</option>';
+  projects.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = (p.urls[0] || 'Project').substring(0, 20);
+    sel.appendChild(opt);
+  });
+}
+
+document.getElementById('addProject').addEventListener('click', async () => {
+  const urls = document.getElementById('projectUrls').value.split('\n').filter(u=>u.trim());
+  const code = document.getElementById('manualCode').value;
+  const filesInput = document.getElementById('projectFile').files;
+  const files = [];
+  
+  for(let f of filesInput) {
+    if(f.name.endsWith('.zip')) {
+       // Simplified zip handling for demo
+       files.push({name: f.name, content: '[ZIP CONTENT PARSED]'}); 
+    } else {
+       files.push({name: f.name, content: 'File loaded'});
+    }
+  }
+  
+  const proj = { id: Date.now().toString(), urls, code, files, enriched: null };
+  projects.push(proj);
+  localStorage.setItem('nexus_projects', JSON.stringify(projects));
+  loadProjects();
+  document.getElementById('addProjectModal').classList.add('hidden');
+});
+
+function useAsContext(id) {
+  document.getElementById('projectSelect').value = id;
+  // Switch to chat tab
+  document.querySelector('[data-target="view-chat"]').click();
+}
+
+function deleteProject(id) {
+  if(confirm('Delete project?')) {
+    projects = projects.filter(p => p.id !== id);
+    localStorage.setItem('nexus_projects', JSON.stringify(projects));
+    loadProjects();
+  }
+}
+
+// --- Chat Engine ---
+let chatHistory = [];
+let currentChatId = null;
+
+function initChat() {
+  const saved = localStorage.getItem('nexus_chats');
+  if(saved) chatHistory = JSON.parse(saved);
+  if(chatHistory.length === 0) createNewChat();
+  else loadChat(chatHistory[0].id);
+}
+
+function createNewChat() {
+  const chat = { id: Date.now().toString(), messages: [], title: 'New Session' };
+  chatHistory.unshift(chat);
+  currentChatId = chat.id;
+  saveChats();
+  renderChatMessages();
+}
+
+function loadChat(id) {
+  currentChatId = id;
+  renderChatMessages();
+}
+
+function saveChats() { localStorage.setItem('nexus_chats', JSON.stringify(chatHistory)); }
+
+function renderChatMessages() {
+  const box = document.getElementById('chatBox');
+  box.innerHTML = '';
+  const chat = chatHistory.find(c => c.id === currentChatId);
+  
+  if(!chat.messages.length) {
+    box.innerHTML = `<div class="text-center text-gray-500 text-xs mt-10 opacity-50 animate-pulse">SYSTEM IDLE<br>READY FOR INPUT</div>`;
+    return;
+  }
+
+  chat.messages.forEach(msg => {
+    const div = document.createElement('div');
+    div.className = `flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`;
+    
+    const bubble = document.createElement('div');
+    bubble.className = `max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed shadow-md ${msg.role === 'user' ? 'chat-bubble-user text-white' : 'chat-bubble-ai text-gray-200'}`;
+    
+    // Simple markdown-ish parsing for bold/code
+    let content = msg.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    content = content.replace(/`([^`]+)`/g, '<code class="bg-black/30 px-1 rounded text-xs font-mono text-indigo-300">$1</code>');
+    
+    bubble.innerHTML = content;
+    div.appendChild(bubble);
+    box.appendChild(div);
+  });
+  
+  box.scrollTop = box.scrollHeight;
+}
+
+document.getElementById('newChatBtn').onclick = createNewChat;
+
+document.getElementById('sendChat').addEventListener('click', async () => {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  
+  // Add User Message
+  const chat = chatHistory.find(c => c.id === currentChatId);
+  chat.messages.push({ role: 'user', content: text });
+  chat.title = text.substring(0, 20) + '...';
+  saveChats();
+  renderChatMessages();
+  input.value = '';
+  
+  // Loading State
+  const box = document.getElementById('chatBox');
+  const loader = document.createElement('div');
+  loader.className = 'flex justify-start w-full animate-pulse';
+  loader.innerHTML = '<div class="bg-white/10 px-3 py-2 rounded-2xl text-xs text-gray-400">Thinking...</div>';
+  box.appendChild(loader);
+  box.scrollTop = box.scrollHeight;
+
+  // Prepare Request
+  const apiKey = localStorage.getItem('groqApiKey');
+  const roleId = document.getElementById('roleSelect').value;
+  const expert = experts.find(e => e.id === roleId) || experts[0];
+  const projectId = document.getElementById('projectSelect').value;
+  
+  let contextStr = "";
+  if(projectId) {
+    const proj = projects.find(p => p.id === projectId);
+    if(proj) {
+      contextStr += `PROJECT CONTEXT:\nURLs: ${proj.urls.join(', ')}\n`;
+      if(proj.code) contextStr += `CODE SNIPPET:\n${proj.code}\n`;
+    }
+  }
+
+  const systemPrompt = buildExpertPrompt(expert.name, expert.domain, expert.objectives)
+    .replace('{{CONTEXT}}', contextStr || "No specific project context.")
+    .replace('{{USER_QUERY}}', text);
+
+  try {
+    const model = localStorage.getItem('groqModel') || 'llama3-8b-8192';
+    const res = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+      model: model,
+      messages: [{ role: 'user', content: systemPrompt }],
+      temperature: expert.temp,
+      max_tokens: expert.tokens
+    }, { headers: { 'Authorization': `Bearer ${apiKey}` }});
+    
+    const reply = res.data.choices[0].message.content;
+    chat.messages.push({ role: 'assistant', content: reply });
+    saveChats();
+    renderChatMessages();
+    
+  } catch(err) {
+    console.error(err);
+    chat.messages.push({ role: 'assistant', content: "Error: Check API Key or Connection." });
+    saveChats();
+    renderChatMessages();
+  }
+});
+
+// --- Initialization ---
+// Ensure everything loads in correct order
+window.addEventListener('DOMContentLoaded', () => {
+  loadSettings();
+  loadExperts(); // Must happen before populateRoleSelect
+  loadProjects(); // Must happen before populateProjectSelect
+  initChat();
+});
+
+</script>
+</body>
+</html>
+
